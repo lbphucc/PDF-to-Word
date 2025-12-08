@@ -1,4 +1,4 @@
-# Hệ thống chuyển đổi PDF sang Word Thông minh
+# Hệ thống chuyển đổi PDF sang Word
 
 ## 1. Tổng quan dự án
 
