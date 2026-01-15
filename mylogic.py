@@ -72,3 +72,49 @@ def pdf_to_word(pdf_file, docx_file, mode='local'):
         return convert_cloud(pdf_file, docx_file)
     else:
         return convert_local(pdf_file, docx_file)
+
+
+def docx_to_pdf(docx_file, pdf_file):
+    """Chuyển đổi DOCX sang PDF bằng ConvertAPI"""
+    try:
+        # Kiểm tra bảo mật: Nếu chưa có Key thì báo lỗi ngay
+        if not MY_API_KEY:
+            return {"status": False, "message": "Lỗi bảo mật: Chưa cấu hình API Key trong file .env"}
+
+        print(f"--- Đang tạo PDF preview bằng ConvertAPI ---")
+
+        url = "https://v2.convertapi.com/convert/docx/to/pdf"
+
+        params = {
+            'Secret': MY_API_KEY,
+            'StoreFile': 'true',
+        }
+
+        with open(docx_file, 'rb') as f:
+            files = {'File': f}
+            response = requests.post(url, params=params, files=files)
+
+        try:
+            data = response.json()
+        except:
+            return {"status": False, "message": "Lỗi: Server trả về dữ liệu không hợp lệ."}
+
+        if 'Files' in data:
+            file_url = data['Files'][0]['Url']
+            print(f"--- Tạo PDF thành công. Đang tải về... ---")
+
+            file_content = requests.get(file_url).content
+
+            with open(pdf_file, 'wb') as f_out:
+                f_out.write(file_content)
+
+            return {"status": True, "message": "Tạo PDF preview thành công!"}
+
+        else:
+            error_message = data.get('Message', 'Lỗi không xác định từ API')
+            print(f"LỖI API: {error_message}")
+            return {"status": False, "message": f"Lỗi từ ConvertAPI: {error_message}"}
+
+    except Exception as e:
+        print(f"LỖI HỆ THỐNG: {str(e)}")
+        return {"status": False, "message": f"Lỗi tạo PDF: {str(e)}"}

@@ -17,7 +17,7 @@
             box-shadow: 0 4px 8px rgba(0,0,0,0.1); /* Đổ bóng nhẹ */
             border: none;
             width: 100%;
-            max-width: 500px;
+            max-width: 600px;
         }
         .loading-overlay {
             display: none; /* Mặc định ẩn */
@@ -74,38 +74,57 @@
         <h5 class="mb-3 text-secondary">Lịch sử chuyển đổi gần đây</h5>
         
         <div class="table-responsive">
-            <table class="table table-sm table-bordered table-hover" style="font-size: 0.9rem;">
+            <table class="table table-sm table-bordered table-hover" style="font-size: 0.85rem;">
                 <thead class="table-light">
                     <tr>
                         <th>Thời gian</th>
                         <th>Tên File</th>
                         <th>Chế độ</th>
                         <th>Trạng thái</th>
+                        <th>Tải về</th>
                     </tr>
                 </thead>
                 <tbody>
                     {% for item in history %}
                     <tr>
                         <td>{{ item.timestamp.strftime('%H:%M %d/%m') }}</td>
-                        <td>{{ item.filename }}</td>
+                        <td title="{{ item.filename }}">
+                            {{ item.filename[:20] }}{% if item.filename|length > 20 %}...{% endif %}
+                        </td>
                         <td>
                             {% if item.mode == 'cloud' %}
-                                <span class="badge bg-info text-dark">Cloud API</span>
+                                <span class="badge bg-info text-dark">Cloud</span>
                             {% else %}
                                 <span class="badge bg-secondary">Local</span>
                             {% endif %}
                         </td>
                         <td>
                             {% if item.status == 'Success' %}
-                                <span class="text-success fw-bold">Thành công</span>
+                                <span class="text-success fw-bold">OK</span>
                             {% else %}
-                                <span class="text-danger">Thất bại</span>
+                                <span class="text-danger">Lỗi</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if item.status == 'Success' and item.file_exists %}
+                                <a href="{{ url_for('preview_history', docx_filename=item.docx_filename) }}"
+                                   class="btn btn-sm btn-outline-success" title="Xem trước file Word">
+                                    Xem
+                                </a>
+                                <a href="{{ url_for('download_file', filename=item.docx_filename) }}"
+                                   class="btn btn-sm btn-outline-primary" title="Tải file Word">
+                                    Tải
+                                </a>
+                            {% elif item.status == 'Success' and not item.file_exists %}
+                                <span class="text-muted small">Đã xóa</span>
+                            {% else %}
+                                <span class="text-muted">-</span>
                             {% endif %}
                         </td>
                     </tr>
                     {% else %}
                     <tr>
-                        <td colspan="4" class="text-center text-muted">Chưa có dữ liệu nào.</td>
+                        <td colspan="5" class="text-center text-muted">Chưa có dữ liệu nào.</td>
                     </tr>
                     {% endfor %}
                 </tbody>

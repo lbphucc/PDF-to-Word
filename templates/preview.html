@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Xem trước tài liệu</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body {
+            background-color: #f8f9fa;
+        }
+        .preview-container {
+            height: calc(100vh - 120px);
+            min-height: 500px;
+        }
+        .pdf-viewer {
+            width: 100%;
+            height: 100%;
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+        }
+        .header-bar {
+            background: white;
+            padding: 15px 0;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        .file-info {
+            background: #e7f3ff;
+            padding: 10px 15px;
+            border-radius: 6px;
+            margin-bottom: 15px;
+        }
+    </style>
+</head>
+<body>
+    <div class="header-bar">
+        <div class="container">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h4 class="text-primary mb-0">📄 Xem trước kết quả</h4>
+                    <small class="text-muted">File: {{ docx_filename }}</small>
+                </div>
+                <div>
+                    <a href="{{ url_for('index') }}" class="btn btn-outline-secondary me-2">
+                        ✕ Hủy & Quay lại
+                    </a>
+                    <a href="{{ url_for('download_file', filename=docx_filename) }}" class="btn btn-success fw-bold">
+                        ⬇ Tải file Word
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="container">
+        {% if error_message %}
+        <div class="alert alert-warning" role="alert">
+            <strong>Lưu ý:</strong> {{ error_message }}
+            <br><small>Bạn vẫn có thể tải file Word về máy để xem.</small>
+        </div>
+        {% endif %}
+
+        {% if pdf_filename %}
+        <div class="file-info">
+            <strong>✅ Chuyển đổi thành công!</strong>
+            Xem trước nội dung bên dưới. Nếu hài lòng, nhấn <strong>"Tải file Word"</strong> để tải về.
+        </div>
+
+        <div class="preview-container">
+            <iframe
+                src="{{ url_for('view_file', filename=pdf_filename) }}"
+                class="pdf-viewer"
+                type="application/pdf">
+                <p>Trình duyệt của bạn không hỗ trợ xem PDF.
+                   <a href="{{ url_for('download_file', filename=pdf_filename) }}">Tải PDF xem trước</a>
+                </p>
+            </iframe>
+        </div>
+        {% else %}
+        <div class="alert alert-info" role="alert">
+            <h5>Chuyển đổi thành công!</h5>
+            <p>Không thể tạo bản xem trước. Vui lòng tải file Word về máy để xem nội dung.</p>
+            <a href="{{ url_for('download_file', filename=docx_filename) }}" class="btn btn-success">
+                ⬇ Tải file Word
+            </a>
+        </div>
+        {% endif %}
+    </div>
+
+    <div class="container mt-3">
+        <div class="text-center text-muted small">
+            &copy; 2025 SE Project. LBP.
+        </div>
+    </div>
+</body>
+</html>
