@@ -2,4 +2,11 @@
 .claude
 __pycache__/
 *.pyc
-uploads/
+uploads/*
+!uploads/.gitkeep
+instance/
+*.db
+*.sqlite3
+venv/
+.envrc
+.venv/
