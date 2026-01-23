@@ -1,0 +1,68 @@
+body {
+    background-color: #f8f9fa;
+    min-height: 100vh;
+    padding: 20px 0;
+}
+.card {
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+    border: none;
+    height: 100%;
+}
+.card-header {
+    background: linear-gradient(135deg, #0d6efd, #6610f2);
+    color: white;
+    font-weight: bold;
+}
+.history-table-container {
+    max-height: 400px;
+    overflow-y: auto;
+}
+.loading-overlay {
+    display: none;
+}
+.format-btn {
+    width: 100%;
+    margin-bottom: 10px;
+    text-align: left;
+    padding: 12px 15px;
+    border-radius: 8px;
+    transition: all 0.2s;
+}
+.format-btn.active {
+    transform: scale(1.02);
+}
+.format-btn .format-icon {
+    font-size: 1.5rem;
+    margin-right: 10px;
+}
+.upload-zone {
+    border: 2px dashed #dee2e6;
+    border-radius: 10px;
+    padding: 40px 20px;
+    text-align: center;
+    transition: all 0.3s;
+    cursor: pointer;
+}
+.upload-zone:hover {
+    border-color: #0d6efd;
+    background-color: #f0f7ff;
+}
+.upload-zone.dragover {
+    border-color: #0d6efd;
+    background-color: #e7f1ff;
+}
+.mode-option {
+    padding: 10px 15px;
+    border: 1px solid #dee2e6;
+    border-radius: 8px;
+    margin-bottom: 8px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+.mode-option:hover {
+    border-color: #0d6efd;
+}
+.mode-option.selected {
+    border-color: #0d6efd;
+    background-color: #e7f1ff;
+}
