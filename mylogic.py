@@ -151,6 +151,291 @@ def pptx_to_pdf(pptx_file, pdf_file):
     """Chuyển đổi PPTX sang PDF bằng ConvertAPI"""
     return file_to_pdf(pptx_file, pdf_file, 'pptx')
 
+<<<<<<< HEAD
+=======
+from PyPDF2 import PdfMerger, PdfReader
+
+
+def merge_pdfs(input_paths, output_path):
+    try:
+        merger = PdfMerger()
+
+        for pdf in input_paths:
+            merger.append(pdf)
+
+        merger.write(output_path)
+        merger.close()
+
+        return {
+            "status": True,
+            "message": "Merge thành công"
+        }
+
+    except Exception as e:
+        return {
+            "status": False,
+            "message": str(e)
+        }
+from pypdf import PdfReader, PdfWriter
+
+def parse_ranges(page_ranges, total_pages):
+    pages = []
+    for r in page_ranges:
+        r = r.strip()
+
+        if "-" in r:
+            start, end = r.split("-")
+
+            if not start.isdigit() or not end.isdigit():
+                return None, f"Range không hợp lệ: {r}"
+
+            start, end = int(start), int(end)
+
+            if start < 1 or end < 1:
+                return None, f"Trang phải >= 1 ({r})"
+
+            if start > end:
+                return None, f"Range sai thứ tự: {r}"
+
+            if end > total_pages:
+                return None, f"Trang {end} không tồn tại (PDF chỉ có {total_pages} trang)"
+
+            pages.extend(range(start - 1, end))
+
+        else:
+            if not r.isdigit():
+                return None, f"Trang không hợp lệ: {r}"
+
+            page = int(r)
+
+            if page < 1 or page > total_pages:
+                return None, f"Trang {page} không tồn tại (PDF chỉ có {total_pages} trang)"
+
+            pages.append(page - 1)
+
+    return sorted(set(pages)), None
+
+from PyPDF2 import PdfReader, PdfWriter
+from io import BytesIO
+
+def rotate_pdf_logic(pdf_stream, angle, page_range):
+    reader = PdfReader(pdf_stream)
+    writer = PdfWriter()
+
+    total_pages = len(reader.pages)
+
+    pages_to_rotate = set()
+
+    if not page_range.strip():
+        pages_to_rotate = set(range(total_pages))
+    else:
+        for part in page_range.split(","):
+            part = part.strip()
+            if "-" in part:
+                start, end = part.split("-")
+                for i in range(int(start) - 1, int(end)):
+                    pages_to_rotate.add(i)
+            else:
+                pages_to_rotate.add(int(part) - 1)
+
+    for i, page in enumerate(reader.pages):
+        if i in pages_to_rotate:
+            page.rotate(angle)   # API ĐÚNG
+        writer.add_page(page)
+
+    output = BytesIO()
+    writer.write(output)
+    output.seek(0)
+    return output
+
+
+import fitz  # PyMuPDF
+from io import BytesIO
+
+def number_pdf_logic(
+    pdf_stream,
+    page_range="",
+    start_number=1,
+    end_number=None,
+    fmt="n"
+):
+    pdf_stream.seek(0)
+    doc = fitz.open(stream=pdf_stream.read(), filetype="pdf")
+
+    total_pages = len(doc)
+
+    # ---- Parse page range ----
+    pages = []
+    if not page_range.strip():
+        pages = list(range(total_pages))
+    else:
+        for part in page_range.split(","):
+            part = part.strip()
+            if "-" in part:
+                s, e = map(int, part.split("-"))
+                pages.extend(range(s - 1, e))
+            else:
+                pages.append(int(part) - 1)
+
+    current_number = start_number
+
+    for i in pages:
+        if i < 0 or i >= total_pages:
+            continue
+
+        if end_number and current_number > end_number:
+            break
+
+        page = doc[i]
+        p = total_pages
+
+        if fmt == "n":
+            text = f"Trang {current_number}"
+        else:
+            text = f"Trang {current_number} trên {p}"
+
+        # ---- Insert textbox (an toàn nhất) ----
+        rect = fitz.Rect(
+            0,
+            page.rect.height - 40,
+            page.rect.width,
+            page.rect.height - 10
+        )
+
+        page.insert_textbox(
+            rect,
+            text,
+            fontsize=11,
+            fontname="helv",
+            align=fitz.TEXT_ALIGN_CENTER,
+            color=(0, 0, 0),
+        )
+
+        current_number += 1
+
+    output = BytesIO()
+    doc.save(output)
+    doc.close()
+    output.seek(0)
+    return output
+
+
+from PyPDF2 import PdfReader, PdfWriter
+from io import BytesIO
+from reportlab.pdfgen import canvas
+from PIL import Image
+
+def watermark_image(pdf_file, image_file, scale, opacity):
+    reader = PdfReader(pdf_file)
+    writer = PdfWriter()
+
+    img = Image.open(image_file)
+    img_width, img_height = img.size
+    ratio = scale / 100
+
+    for page in reader.pages:
+        width = float(page.mediabox.width)
+        height = float(page.mediabox.height)
+
+        packet = BytesIO()
+        can = canvas.Canvas(packet, pagesize=(width, height))
+        can.setFillAlpha(opacity)
+
+        w = img_width * ratio
+        h = img_height * ratio
+
+        # LƯU ẢNH RA BUFFER
+        img_buffer = BytesIO()
+        img.save(img_buffer, format="PNG")
+        img_buffer.seek(0)
+
+        can.drawImage(
+            img_buffer,
+            (width - w) / 2,
+            (height - h) / 2,
+            w,
+            h,
+            mask='auto'
+        )
+
+        can.save()
+
+        packet.seek(0)
+        watermark_pdf = PdfReader(packet)
+        page.merge_page(watermark_pdf.pages[0])
+
+        writer.add_page(page)
+
+    output = BytesIO()
+    writer.write(output)
+    output.seek(0)
+
+    return output
+
+
+from PyPDF2 import PdfReader, PdfWriter
+from reportlab.pdfgen import canvas
+from reportlab.lib.colors import Color
+import io
+
+def watermark_text(input_pdf, text, font_size=40, opacity=0.3):
+    reader = PdfReader(input_pdf)
+    writer = PdfWriter()
+
+    for page in reader.pages:
+        packet = io.BytesIO()
+        can = canvas.Canvas(packet)
+
+        width = float(page.mediabox.width)
+        height = float(page.mediabox.height)
+
+        can.setFont("Helvetica", font_size)
+        can.setFillColor(Color(0, 0, 0, alpha=opacity))
+        can.saveState()
+        can.translate(width / 2, height / 2)
+        can.rotate(45)
+        can.drawCentredString(0, 0, text)
+        can.restoreState()
+        can.save()
+
+        packet.seek(0)
+        watermark_pdf = PdfReader(packet)
+        page.merge_page(watermark_pdf.pages[0])
+        writer.add_page(page)
+
+    output = io.BytesIO()
+    writer.write(output)
+    output.seek(0)
+    return output
+
+import pikepdf
+from PIL import Image
+import io
+
+def watermark_image(pdf_file, image_file, scale=0.3, opacity=0.5):
+    pdf = pikepdf.open(pdf_file)
+
+    img = Image.open(image_file).convert("RGBA")
+    alpha = img.split()[3].point(lambda x: int(x * opacity))
+    img.putalpha(alpha)
+
+    img_bytes = io.BytesIO()
+    img.save(img_bytes, format="PNG")
+    img_bytes.seek(0)
+
+    wm = pdf.make_stream(img_bytes.read())
+
+    for page in pdf.pages:
+        page.add_overlay(wm)
+
+    out = io.BytesIO()
+    pdf.save(out)
+    out.seek(0)
+    return out
+
+
+
+>>>>>>> 6ef115f (add watermark feature)
 
 def file_to_pdf(input_file, pdf_file, input_format):
     """Chuyển đổi file (docx/xlsx/pptx) sang PDF bằng ConvertAPI"""

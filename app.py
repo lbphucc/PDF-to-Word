@@ -4,8 +4,26 @@ from flask import Flask, render_template, request, send_file, redirect, url_for
 from werkzeug.utils import secure_filename
 from flask_sqlalchemy import SQLAlchemy # Import Database
 from mylogic import pdf_to_word, pdf_to_excel, pdf_to_powerpoint, docx_to_pdf, xlsx_to_pdf, pptx_to_pdf  # Import logic
+<<<<<<< HEAD
 
 app = Flask(__name__)
+=======
+from PyPDF2 import PdfMerger
+
+app = Flask(__name__)
+@app.route("/merge", methods=["GET"])
+def merge():
+    return render_template("merge.html")
+
+
+@app.route("/split")
+def split():
+    return render_template("split.html")
+
+@app.route("/compress")
+def compress():
+    return render_template("compress.html")
+>>>>>>> 6ef115f (add watermark feature)
 
 # --- CẤU HÌNH ---
 UPLOAD_FOLDER = 'uploads'
@@ -230,6 +248,211 @@ def delete_all_history():
 
     return redirect(url_for('index'))
 
+<<<<<<< HEAD
+=======
+from mylogic import merge_pdfs   # nhớ import ở đầu file
+@app.route("/merge", methods=["POST"])
+def merge_post():
+    files = request.files.getlist("pdf_files")
+    print("FILES:", files)
+
+    if not files or len(files) < 2:
+        return "Cần chọn ít nhất 2 file PDF", 400
+
+    merger = PdfMerger()
+
+    for file in files:
+        if file.filename == "":
+            continue
+        merger.append(file)
+
+    output_name = f"merged_{int(datetime.now().timestamp())}.pdf"
+    output_path = os.path.join(app.config["UPLOAD_FOLDER"], output_name)
+
+    merger.write(output_path)
+    merger.close()
+
+    return send_file(
+        output_path,
+        mimetype="application/pdf",
+        as_attachment=True,
+        download_name="merged.pdf"
+    )
+
+
+from flask import request, send_file
+from pypdf import PdfReader, PdfWriter
+from mylogic import parse_ranges
+import zipfile, os, uuid
+
+@app.route("/split", methods=["POST"])
+def split_post():
+    file = request.files.get("pdf_file")
+    ranges = request.form.getlist("page_range")
+    mode = request.form.get("split_mode", "merge")
+
+    if not file:
+        return "Chưa chọn file PDF", 400
+
+    reader = PdfReader(file)
+    total_pages = len(reader.pages)
+
+    # ===== MERGE MODE =====
+    if mode == "merge":
+        pages, error = parse_ranges(ranges, total_pages)
+        if error:
+            return error, 400
+
+        writer = PdfWriter()
+        for i in pages:
+            writer.add_page(reader.pages[i])
+
+        output = f"merged_{uuid.uuid4().hex}.pdf"
+        with open(output, "wb") as f:
+            writer.write(f)
+
+        return send_file(
+            output,
+            as_attachment=True,
+            download_name="split.pdf"
+        )
+
+    # ===== SEPARATE MODE =====
+    zip_name = f"split_{uuid.uuid4().hex}.zip"
+    with zipfile.ZipFile(zip_name, "w", zipfile.ZIP_DEFLATED) as zipf:
+        for idx, r in enumerate(ranges, start=1):
+            pages, error = parse_ranges([r], total_pages)
+            if error:
+                return error, 400
+
+            writer = PdfWriter()
+            for i in pages:
+                writer.add_page(reader.pages[i])
+
+            pdf_name = f"range_{idx}.pdf"
+            with open(pdf_name, "wb") as f:
+                writer.write(f)
+
+            zipf.write(pdf_name)
+            os.remove(pdf_name)
+
+    return send_file(
+        zip_name,
+        as_attachment=True,
+        download_name="split.zip"
+    )
+
+import traceback
+from flask import request, render_template, send_file
+from mylogic import rotate_pdf_logic
+
+@app.route("/rotate", methods=["GET", "POST"])
+def rotate_pdf():
+    if request.method == "GET":
+        return render_template("rotate.html")
+
+    try:
+        pdf = request.files.get("pdf")
+        angle = int(request.form.get("angle", 90))
+        page_range = request.form.get("page_range", "")
+
+        if not pdf:
+            return "Chưa chọn file PDF", 400
+
+        pdf.stream.seek(0)
+        output_pdf = rotate_pdf_logic(pdf.stream, angle, page_range)
+
+        return send_file(
+            output_pdf,
+            as_attachment=True,
+            download_name="rotated.pdf",
+            mimetype="application/pdf"
+        )
+
+    except Exception as e:
+        print("❌ ROTATE ERROR FULL:")
+        traceback.print_exc()
+        return str(e), 500
+from mylogic import number_pdf_logic
+
+@app.route("/page_number", methods=["GET", "POST"])
+def page_number():
+    if request.method == "GET":
+        return render_template("page_number.html")
+
+    try:
+        # ---- Get file ----
+        pdf = request.files.get("pdf")
+        if not pdf:
+            return "Không có file PDF", 400
+
+        # ---- Get options ----
+        page_range = request.form.get("page_range", "").strip()
+        start_number = int(request.form.get("start_number", 1))
+
+        end_number_raw = request.form.get("end_number")
+        end_number = int(end_number_raw) if end_number_raw else None
+
+        fmt = request.form.get("format", "n")
+
+        # ---- Process ----
+        pdf.stream.seek(0)
+
+        output = number_pdf_logic(
+            pdf.stream,
+            page_range=page_range,
+            start_number=start_number,
+            end_number=end_number,
+            fmt=fmt
+        )
+
+        output.seek(0)
+
+        # ---- Return file ----
+        return send_file(
+            output,
+            as_attachment=True,
+            download_name="numbered.pdf",
+            mimetype="application/pdf"
+        )
+
+    except Exception as e:
+        print("❌ PAGE NUMBER ERROR:")
+        traceback.print_exc()
+        return str(e), 500
+
+from flask import request, send_file, render_template
+from mylogic import watermark_text, watermark_image
+
+
+@app.route("/watermark", methods=["GET", "POST"])
+def watermark():
+    if request.method == "GET":
+        return render_template("watermark.html")
+
+    pdf = request.files.get("pdf")
+    if not pdf:
+        return "Thiếu file PDF", 400
+
+    text = request.form.get("wmText", "WATERMARK")
+    font_size = int(request.form.get("fontSize", 40))
+    opacity = float(request.form.get("opacity", 30)) / 100
+
+    output = watermark_text(pdf, text, font_size, opacity)
+
+    return send_file(
+        output,
+        as_attachment=True,
+        download_name="watermarked.pdf",
+        mimetype="application/pdf"
+    )
+
+if __name__ == "__main__":
+    app.run(debug=True)
+
+
+
+>>>>>>> 6ef115f (add watermark feature)
 
 if __name__ == '__main__':
     app.run(debug=True)
