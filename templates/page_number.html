@@ -1,0 +1,142 @@
+{% extends "base.html" %}
+
+{% set active_page = 'page_number' %}
+
+{% block title %}Page Number PDF{% endblock %}
+
+{% block content %}
+<!-- ===== MAIN ===== -->
+<div class="tool-container">
+    <h2>ĐÁNH SỐ TRANG PDF</h2>
+
+    <!-- 2 columns -->
+    <div class="edit-area">
+        <!-- PREVIEW -->
+        <div class="preview-box">
+            <iframe id="pdfPreview"></iframe>
+        </div>
+
+        <div class="option-box">
+            <div class="upload-box" onclick="pdfInput.click()">
+                Kéo thả hoặc bấm chọn file PDF
+            </div>
+            <input type="file" id="pdfInput" hidden accept="application/pdf" />
+
+            <h5>Tùy chọn đánh số</h5>
+            <!-- PAGE RANGE -->
+            <div class="mb-3">
+                <label class="form-label">Trang áp dụng</label>
+                <input type="text" class="form-control" id="pageRange" placeholder="VD: 1-3,5 (để trống = tất cả)" />
+            </div>
+
+            <div class="row">
+                <div class="col-md-6 mb-3">
+                    <label class="form-label">Bắt đầu từ số</label>
+                    <input type="number" class="form-control" id="startNumber" value="1" />
+                </div>
+                <div class="col-md-6 mb-3">
+                    <label class="form-label">Kết thúc tại số</label>
+                    <input type="number" class="form-control" id="endNumber" placeholder="VD: 10" />
+                </div>
+            </div>
+
+            <!-- FORMAT -->
+            <div class="mb-3">
+                <label class="form-label">Kiểu đánh số</label>
+                <select class="form-select" id="format">
+                    <option value="n">Trang {n}</option>
+                    <option value="n_p">Trang {n} trên {p}</option>
+                </select>
+            </div>
+
+            <button class="btn-main" disabled id="submitBtn">
+                Đánh số trang
+            </button>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    const pdfInput = document.getElementById("pdfInput");
+    const submitBtn = document.getElementById("submitBtn");
+    const preview = document.getElementById("pdfPreview");
+
+    const pageRangeInput = document.getElementById("pageRange");
+    const startNumberInput = document.getElementById("startNumber");
+    const endNumberInput = document.getElementById("endNumber");
+    const formatSelect = document.getElementById("format");
+
+    // ===== Khi chon file =====
+    pdfInput.addEventListener("change", () => {
+        const file = pdfInput.files[0];
+
+        if (!file) {
+            submitBtn.disabled = true;
+            preview.src = "";
+            return;
+        }
+
+        if (file.type !== "application/pdf") {
+            alert("Vui lòng chọn file PDF");
+            pdfInput.value = "";
+            submitBtn.disabled = true;
+            return;
+        }
+
+        // Preview PDF
+        const url = URL.createObjectURL(file);
+        preview.src = url;
+
+        submitBtn.disabled = false;
+    });
+
+    // ===== Click nut danh so =====
+    submitBtn.addEventListener("click", async () => {
+        const file = pdfInput.files[0];
+        if (!file) return;
+
+        const formData = new FormData();
+        formData.append("pdf", file);
+        formData.append("page_range", pageRangeInput.value.trim());
+        formData.append("start_number", startNumberInput.value || 1);
+        formData.append("end_number", endNumberInput.value);
+        formData.append("format", formatSelect.value);
+
+        submitBtn.disabled = true;
+        submitBtn.textContent = "Đang đánh số...";
+
+        try {
+            const response = await fetch("/page_number", {
+                method: "POST",
+                body: formData,
+            });
+
+            if (!response.ok) {
+                const errorText = await response.text();
+                alert("Loi: " + errorText);
+                return;
+            }
+
+            const blob = await response.blob();
+            const downloadUrl = window.URL.createObjectURL(blob);
+
+            const a = document.createElement("a");
+            a.href = downloadUrl;
+            a.download = "numbered.pdf";
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+
+            window.URL.revokeObjectURL(downloadUrl);
+        } catch (err) {
+            console.error(err);
+            alert("Có lỗi xảy ra khi đánh số trang");
+        } finally {
+            submitBtn.disabled = false;
+            submitBtn.textContent = "Đánh số trang";
+        }
+    });
+</script>
+{% endblock %}

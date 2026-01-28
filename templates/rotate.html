@@ -1,0 +1,108 @@
+{% extends "base.html" %}
+
+{% set active_page = 'rotate' %}
+
+{% block title %}Rotate PDF{% endblock %}
+
+{% block content %}
+<!-- ===== MAIN ===== -->
+<div class="tool-container">
+    <h2>Xoay trang PDF</h2>
+
+    <!-- 2 columns -->
+    <div class="edit-area">
+        <!-- PREVIEW -->
+        <div class="preview-box">
+            <iframe id="pdfPreview"></iframe>
+        </div>
+
+        <!-- OPTIONS -->
+        <div class="option-box">
+            <!-- Upload -->
+            <div class="upload-box" onclick="document.getElementById('pdfInput').click()">
+                Kéo thả hoặc bấm chọn file PDF
+            </div>
+            <input type="file" id="pdfInput" accept="application/pdf" hidden />
+
+            <h5>Tùy chọn xoay</h5>
+            <!-- PAGE RANGE -->
+            <div class="mb-3">
+                <label class="form-label">Trang cần xoay</label>
+                <input type="text" class="form-control" id="pageRange" placeholder="VD: 1-3,5,8 (để trống = tất cả)" />
+            </div>
+
+            <!-- ANGLE -->
+            <div class="mb-3">
+                <label class="form-label">Góc xoay</label>
+                <select class="form-select" id="angle">
+                    <option value="90">90 (xoay phải)</option>
+                    <option value="180">180</option>
+                    <option value="270">270 (xoay trái)</option>
+                </select>
+            </div>
+
+            <button class="btn-main" disabled id="rotateBtn">Xoay PDF</button>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    const input = document.getElementById("pdfInput");
+    const preview = document.getElementById("pdfPreview");
+    const btn = document.getElementById("rotateBtn");
+    const angleSelect = document.getElementById("angle");
+    const rangeInput = document.getElementById("pageRange");
+
+    input.addEventListener("change", () => {
+        const file = input.files[0];
+        if (file) {
+            preview.src = URL.createObjectURL(file);
+            btn.disabled = false;
+        }
+    });
+
+    btn.addEventListener("click", async () => {
+        const file = input.files[0];
+        if (!file) {
+            alert("Chua chon file PDF");
+            return;
+        }
+
+        const formData = new FormData();
+        formData.append("pdf", file);
+        formData.append("angle", angleSelect.value);
+        formData.append("page_range", rangeInput.value);
+
+        btn.disabled = true;
+        btn.innerText = "Dang xu ly...";
+
+        try {
+            const res = await fetch("/rotate", {
+                method: "POST",
+                body: formData,
+            });
+
+            if (!res.ok) {
+                const text = await res.text();
+                throw new Error(text);
+            }
+
+            const blob = await res.blob();
+            const url = URL.createObjectURL(blob);
+
+            const a = document.createElement("a");
+            a.href = url;
+            a.download = "rotated.pdf";
+            a.click();
+        } catch (e) {
+            alert("Xoay PDF thất bại (xem console)");
+            console.error(e);
+        } finally {
+            btn.innerText = "Xoay PDF";
+            btn.disabled = false;
+        }
+    });
+</script>
+{% endblock %}

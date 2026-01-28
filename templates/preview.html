@@ -1,114 +1,121 @@
-<!DOCTYPE html>
-<html lang="vi">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Xem trước tài liệu</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <style>
-        body {
-            background-color: #f8f9fa;
-        }
-        .preview-container {
-            height: calc(100vh - 120px);
-            min-height: 500px;
-        }
-        .pdf-viewer {
-            width: 100%;
-            height: 100%;
-            border: 1px solid #dee2e6;
-            border-radius: 8px;
-        }
-        .header-bar {
-            background: white;
-            padding: 15px 0;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-            margin-bottom: 20px;
-        }
-        .file-info {
-            padding: 10px 15px;
-            border-radius: 6px;
-            margin-bottom: 15px;
-        }
-        .file-info.word { background: #e7f3ff; }
-        .file-info.excel { background: #e7f7e7; }
-        .file-info.powerpoint { background: #fff3e7; }
-        .format-badge {
-            font-size: 0.85rem;
-            padding: 4px 10px;
-            border-radius: 4px;
-        }
-        .format-badge.word { background: #0d6efd; color: white; }
-        .format-badge.excel { background: #198754; color: white; }
-        .format-badge.powerpoint { background: #dc3545; color: white; }
-    </style>
-</head>
-<body>
-    {% set format_name = {'word': 'Word', 'excel': 'Excel', 'powerpoint': 'PowerPoint'} %}
-    {% set format_icon = {'word': '📄', 'excel': '📊', 'powerpoint': '📽️'} %}
-    {% set current_format = output_format|default('word') %}
+{% extends "base.html" %}
 
-    <div class="header-bar">
-        <div class="container">
-            <div class="d-flex justify-content-between align-items-center">
-                <div>
-                    <h4 class="text-primary mb-0">
-                        {{ format_icon[current_format] }} Xem trước kết quả
-                        <span class="format-badge {{ current_format }}">{{ format_name[current_format] }}</span>
-                    </h4>
-                    <small class="text-muted">File: {{ docx_filename }}</small>
-                </div>
-                <div>
-                    <a href="{{ url_for('index') }}" class="btn btn-outline-secondary me-2">
-                        ✕ Hủy & Quay lại
-                    </a>
-                    <a href="{{ url_for('download_file', filename=docx_filename) }}" class="btn btn-success fw-bold">
-                        ⬇ Tải file {{ format_name[current_format] }}
-                    </a>
-                </div>
+{% set active_page = 'preview' %}
+
+{% block title %}Xem truoc tai lieu{% endblock %}
+
+{% block extra_css %}
+<style>
+    .preview-container {
+        height: calc(100vh - 200px);
+        min-height: 500px;
+    }
+    .pdf-viewer {
+        width: 100%;
+        height: 100%;
+        border: 1px solid #dee2e6;
+        border-radius: 8px;
+    }
+    .header-bar {
+        background: white;
+        padding: 15px 0;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        margin-bottom: 20px;
+    }
+    .file-info {
+        padding: 10px 15px;
+        border-radius: 6px;
+        margin-bottom: 15px;
+    }
+    .file-info.word {
+        background: #e7f3ff;
+    }
+    .file-info.excel {
+        background: #e7f7e7;
+    }
+    .file-info.powerpoint {
+        background: #fff3e7;
+    }
+    .format-badge {
+        font-size: 0.85rem;
+        padding: 4px 10px;
+        border-radius: 4px;
+    }
+    .format-badge.word {
+        background: #0d6efd;
+        color: white;
+    }
+    .format-badge.excel {
+        background: #198754;
+        color: white;
+    }
+    .format-badge.powerpoint {
+        background: #dc3545;
+        color: white;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+{% set format_name = {'word': 'Word', 'excel': 'Excel', 'powerpoint': 'PowerPoint'} %}
+{% set format_icon = {'word': '', 'excel': '', 'powerpoint': ''} %}
+{% set current_format = output_format|default('word') %}
+
+<div class="header-bar">
+    <div class="container">
+        <div class="d-flex justify-content-between align-items-center">
+            <div>
+                <h4 class="text-primary mb-0">
+                    {{ format_icon[current_format] }} Xem truoc ket qua
+                    <span class="format-badge {{ current_format }}">{{ format_name[current_format] }}</span>
+                </h4>
+                <small class="text-muted">File: {{ docx_filename }}</small>
+            </div>
+            <div>
+                <a href="{{ url_for('main.index') }}" class="btn btn-outline-secondary me-2">
+                    Huy & Quay lai
+                </a>
+                <a href="{{ url_for('main.download_file', filename=docx_filename) }}" class="btn btn-success fw-bold">
+                    Tai file {{ format_name[current_format] }}
+                </a>
             </div>
         </div>
     </div>
+</div>
 
-    <div class="container">
-        {% if error_message %}
-        <div class="alert alert-warning" role="alert">
-            <strong>Lưu ý:</strong> {{ error_message }}
-            <br><small>Bạn vẫn có thể tải file {{ format_name[current_format] }} về máy để xem.</small>
-        </div>
-        {% endif %}
+<div class="container">
+    {% if error_message %}
+    <div class="alert alert-warning" role="alert">
+        <strong>Lưu ý:</strong> {{ error_message }} <br />
+        <small>Bạn vẫn có thể tải file {{ format_name[current_format] }} về máy để xem.</small>
+    </div>
+    {% endif %}
 
-        {% if pdf_filename %}
-        <div class="file-info {{ current_format }}">
-            <strong>✅ Chuyển đổi thành công!</strong>
-            Xem trước nội dung bên dưới. Nếu hài lòng, nhấn <strong>"Tải file {{ format_name[current_format] }}"</strong> để tải về.
-        </div>
-
-        <div class="preview-container">
-            <iframe
-                src="{{ url_for('view_file', filename=pdf_filename) }}"
-                class="pdf-viewer"
-                type="application/pdf">
-                <p>Trình duyệt của bạn không hỗ trợ xem PDF.
-                   <a href="{{ url_for('download_file', filename=pdf_filename) }}">Tải PDF xem trước</a>
-                </p>
-            </iframe>
-        </div>
-        {% else %}
-        <div class="alert alert-info" role="alert">
-            <h5>Chuyển đổi thành công!</h5>
-            <p>Không thể tạo bản xem trước. Vui lòng tải file về máy để xem nội dung.</p>
-            <a href="{{ url_for('download_file', filename=docx_filename) }}" class="btn btn-success">
-                ⬇ Tải file {{ format_name[current_format] }}
-            </a>
-        </div>
-        {% endif %}
+    {% if pdf_filename %}
+    <div class="file-info {{ current_format }}">
+        <strong>Chuyển đổi thành công!</strong>
+        Xem trước nội dung bên dưới. Nếu hài lòng, nhấn
+        <strong>"Tải file {{ format_name[current_format] }}"</strong> để tải về.
     </div>
 
-    <div class="container mt-3">
-        <div class="text-center text-muted small">
-            &copy; 2025 SE Project. LBP.
-        </div>
+    <div class="preview-container">
+        <iframe src="{{ url_for('main.view_file', filename=pdf_filename) }}" class="pdf-viewer" type="application/pdf">
+            <p>
+                Trình duyệt của bạn không hỗ trợ xem PDF.
+                <a href="{{ url_for('main.download_file', filename=pdf_filename) }}">Tải PDF xem trước</a>
+            </p>
+        </iframe>
     </div>
-</body>
-</html>
+    {% else %}
+    <div class="alert alert-info" role="alert">
+        <h5>Chuyển đổi thành công!</h5>
+        <p>
+            Không thể tạo bản xem trước. Vui lòng tải file về máy để xem nội dung.
+        </p>
+        <a href="{{ url_for('main.download_file', filename=docx_filename) }}" class="btn btn-success">
+            Tải file {{ format_name[current_format] }}
+        </a>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

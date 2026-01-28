@@ -1,0 +1,209 @@
+{% extends "base.html" %}
+
+{% set active_page = 'watermark' %}
+
+{% block title %}Watermark PDF{% endblock %}
+
+{% block content %}
+<!-- ===== MAIN ===== -->
+<div class="tool-container">
+    <h2>Thêm hình mờ vào PDF</h2>
+
+    <!-- 2 columns -->
+    <div class="edit-area">
+        <!-- PREVIEW -->
+        <div class="preview-box">
+            <iframe id="pdfPreview"></iframe>
+        </div>
+
+        <div class="option-box">
+            <label class="upload-box">
+                <input type="file" id="pdfInput" multiple accept="application/pdf" hidden />
+                Kéo thả hoặc bấm chọn file PDF
+            </label>
+            <h5>Tùy chọn </h5>
+
+            <!-- PAGE RANGE -->
+            <div class="mb-3">
+                <label class="form-label">Trang áp dụng</label>
+                <input type="text" class="form-control" id="pageRange" placeholder="VD: 1-3,5 (để trống = tất cả)" />
+            </div>
+
+            <!-- WATERMARK TYPE -->
+            <div class="mb-3">
+                <label class="form-label">Nội dung</label>
+
+                <div class="row g-3">
+                    <!-- IMAGE -->
+                    <div class="col-12">
+                        <div class="border rounded p-3">
+                            <div class="form-check mb-2">
+                                <input class="form-check-input" type="radio" name="wmType" id="wmImageType" value="image" checked />
+                                <label class="form-check-label fw-semibold">Ảnh</label>
+                            </div>
+
+                            <div id="imageOptions">
+                                <div class="mb-2">
+                                    <input type="file" class="form-control form-control-sm" id="wmImage" accept="image/*" />
+                                </div>
+                                <label class="form-label mb-1">
+                                    Kích thước ảnh: <span id="imgScaleValue">100</span>%
+                                </label>
+                                <input type="range" class="form-range" id="imgScale" min="10" max="200" value="100" />
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- TEXT -->
+                    <div class="col-12">
+                        <div class="border rounded p-3">
+                            <div class="form-check mb-2">
+                                <input class="form-check-input" type="radio" name="wmType" id="wmTextType" value="text" />
+                                <label class="form-check-label fw-semibold">Chữ</label>
+                            </div>
+
+                            <div id="textOptions">
+                                <input type="text" class="form-control form-control-sm mb-2" id="wmText" placeholder="Nhập nội dung: " />
+
+                                <div class="row g-2">
+                                    <div class="col-6">
+                                        <label class="form-label mb-1">
+                                            Cỡ chữ: <span id="fontSizeValue">40</span>px
+                                        </label>
+                                        <input type="range" class="form-range" id="fontSize" min="10" max="100" value="40" />
+                                    </div>
+                                    <div class="col-6">
+                                        <label class="form-label mb-1">Font chữ</label>
+                                        <select class="form-select form-select-sm" id="fontFamily">
+                                            <option value="Helvetica">Helvetica</option>
+                                            <option value="Times-Roman">Times New Roman</option>
+                                            <option value="Courier">Courier</option>
+                                        </select>
+                                    </div>
+                                </div>
+
+                                <div class="d-flex gap-3 mt-2">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" id="fontBold" />
+                                        <label class="form-check-label">Đậm</label>
+                                    </div>
+
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" id="fontItalic" />
+                                        <label class="form-check-label">Nghiêng</label>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- OPACITY -->
+            <div class="mb-3">
+                <label class="form-label">
+                    Độ trong suốt: <span id="opacityValue">30</span>%
+                </label>
+                <input type="range" class="form-range" id="wmOpacity" min="1" max="100" value="30" />
+            </div>
+
+            <!-- ACTION BUTTON -->
+            <div class="action-box">
+                <button id="mergeBtn" class="primary-btn" disabled>
+                    Thêm hình mờ PDF
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.addEventListener("DOMContentLoaded", () => {
+        const pdfInput = document.getElementById("pdfInput");
+        const pdfPreview = document.getElementById("pdfPreview");
+        const mergeBtn = document.getElementById("mergeBtn");
+
+        const wmImageType = document.getElementById("wmImageType");
+        const wmTextType = document.getElementById("wmTextType");
+        const wmImage = document.getElementById("wmImage");
+        const wmText = document.getElementById("wmText");
+
+        const imageOptions = document.getElementById("imageOptions");
+        const textOptions = document.getElementById("textOptions");
+
+        const imgScale = document.getElementById("imgScale");
+        const imgScaleValue = document.getElementById("imgScaleValue");
+
+        const fontSize = document.getElementById("fontSize");
+        const fontSizeValue = document.getElementById("fontSizeValue");
+
+        const opacity = document.getElementById("wmOpacity");
+        const opacityValue = document.getElementById("opacityValue");
+
+        // ===== PREVIEW =====
+        pdfInput.addEventListener("change", () => {
+            if (!pdfInput.files.length) {
+                mergeBtn.disabled = true;
+                return;
+            }
+            mergeBtn.disabled = false;
+            pdfPreview.src = URL.createObjectURL(pdfInput.files[0]);
+        });
+
+        // ===== WATERMARK TYPE =====
+        function updateType() {
+            const isText = wmTextType.checked;
+            wmText.disabled = !isText;
+            wmImage.disabled = isText;
+            textOptions.style.display = isText ? "block" : "none";
+            imageOptions.style.display = isText ? "none" : "block";
+        }
+
+        wmImageType.addEventListener("change", updateType);
+        wmTextType.addEventListener("change", updateType);
+
+        // ===== RANGE =====
+        imgScale.oninput = () => (imgScaleValue.textContent = imgScale.value);
+        fontSize.oninput = () => (fontSizeValue.textContent = fontSize.value);
+        opacity.oninput = () => (opacityValue.textContent = opacity.value);
+
+        updateType();
+
+        // ===== SUBMIT =====
+        mergeBtn.addEventListener("click", async () => {
+            const formData = new FormData();
+            formData.append("pdf", pdfInput.files[0]);
+            formData.append("wmText", wmText.value);
+            formData.append("fontSize", fontSize.value);
+            formData.append("opacity", opacity.value);
+            formData.append("wmType", wmTextType.checked ? "text" : "image");
+
+            if (!wmTextType.checked && wmImage.files[0]) {
+                formData.append("wmImage", wmImage.files[0]);
+                formData.append("imgScale", imgScale.value);
+            }
+
+            mergeBtn.disabled = true;
+            mergeBtn.textContent = "ĐANG XỬ LÝ...";
+
+            const res = await fetch("/watermark", {
+                method: "POST",
+                body: formData,
+            });
+
+            const blob = await res.blob();
+            const url = URL.createObjectURL(blob);
+
+            const a = document.createElement("a");
+            a.href = url;
+            a.download = "watermarked.pdf";
+            a.click();
+
+            mergeBtn.textContent = "WATERMARK PDF";
+            mergeBtn.disabled = false;
+        });
+    });
+</script>
+{% endblock %}

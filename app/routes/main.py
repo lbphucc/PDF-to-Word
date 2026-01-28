@@ -1,56 +1,39 @@
+"""
+Main Routes - Trang chính, chuyển đổi, xem trước, tải file, lịch sử
+"""
 import os
-from datetime import datetime
-from flask import Flask, render_template, request, send_file, redirect, url_for
+from flask import Blueprint, render_template, request, send_file, redirect, url_for, current_app
 from werkzeug.utils import secure_filename
-from flask_sqlalchemy import SQLAlchemy # Import Database
-from mylogic import pdf_to_word, pdf_to_excel, pdf_to_powerpoint, docx_to_pdf, xlsx_to_pdf, pptx_to_pdf  # Import logic
 
-app = Flask(__name__)
+from app.extensions import db
+from app.models.history import History
+from app.services.converter import (
+    pdf_to_word, pdf_to_excel, pdf_to_powerpoint,
+    docx_to_pdf, xlsx_to_pdf, pptx_to_pdf
+)
 
-# --- CẤU HÌNH ---
-UPLOAD_FOLDER = 'uploads'
-app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
-# Cấu hình SQLite (File db sẽ tên là project.db nằm cùng thư mục)
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///project.db'
-app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+# Tạo Blueprint
+main_bp = Blueprint('main', __name__)
 
-os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
-# Khởi tạo Database
-db = SQLAlchemy(app)
-
-# --- ĐỊNH NGHĨA MODEL (Bảng dữ liệu) ---
-class History(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    filename = db.Column(db.String(100), nullable=False)  # Tên file PDF gốc
-    docx_filename = db.Column(db.String(100))  # Tên file đã chuyển đổi (docx, xlsx, pptx)
-    timestamp = db.Column(db.DateTime, default=datetime.now)
-    status = db.Column(db.String(20)) # 'Success' hoặc 'Failed'
-    mode = db.Column(db.String(20))   # 'Local' hoặc 'Cloud'
-    output_format = db.Column(db.String(10))  # 'word', 'excel', 'powerpoint'
-    message = db.Column(db.String(200))
-
-# Tạo file Database nếu chưa có (Chạy 1 lần đầu)
-with app.app_context():
-    db.create_all()
-
-@app.route('/', methods=['GET'])
+@main_bp.route('/', methods=['GET'])
 def index():
-    # Lấy 10 lần chuyển đổi gần nhất từ DB để hiển thị ra Web
+    """Trang chủ - hiển thị form chuyển đổi và lịch sử"""
     recent_conversions = History.query.order_by(History.timestamp.desc()).limit(10).all()
 
-    # Kiểm tra file có tồn tại không cho mỗi record
     for item in recent_conversions:
         if item.docx_filename:
-            file_path = os.path.join(app.config['UPLOAD_FOLDER'], item.docx_filename)
+            file_path = os.path.join(current_app.config['UPLOAD_FOLDER'], item.docx_filename)
             item.file_exists = os.path.exists(file_path)
         else:
             item.file_exists = False
 
     return render_template('index.html', history=recent_conversions)
 
-@app.route('/convert', methods=['POST'])
+
+@main_bp.route('/convert', methods=['POST'])
 def convert():
+    """Xử lý chuyển đổi PDF"""
     if 'pdf_file' not in request.files:
         return "Lỗi: Không có file", 400
 
@@ -63,10 +46,9 @@ def convert():
 
     if file:
         filename = secure_filename(file.filename)
-        pdf_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+        pdf_path = os.path.join(current_app.config['UPLOAD_FOLDER'], filename)
         file.save(pdf_path)
 
-        # Xác định đuôi file và hàm chuyển đổi dựa trên output_format
         format_config = {
             'word': {'ext': '.docx', 'func': pdf_to_word},
             'excel': {'ext': '.xlsx', 'func': pdf_to_excel},
@@ -78,12 +60,10 @@ def convert():
         convert_func = config['func']
 
         output_filename = os.path.splitext(filename)[0] + output_ext
-        output_path = os.path.join(app.config['UPLOAD_FOLDER'], output_filename)
+        output_path = os.path.join(current_app.config['UPLOAD_FOLDER'], output_filename)
 
-        # 1. Thực hiện chuyển đổi
         result = convert_func(pdf_path, output_path, mode=mode)
 
-        # 2. Lưu vào Database
         new_record = History(
             filename=filename,
             docx_filename=output_filename if result['status'] else None,
@@ -96,11 +76,9 @@ def convert():
         db.session.commit()
 
         if result['status']:
-            # Tạo PDF preview cho tất cả định dạng
             pdf_preview_filename = os.path.splitext(output_filename)[0] + '_preview.pdf'
-            pdf_preview_path = os.path.join(app.config['UPLOAD_FOLDER'], pdf_preview_filename)
+            pdf_preview_path = os.path.join(current_app.config['UPLOAD_FOLDER'], pdf_preview_filename)
 
-            # Chọn hàm convert phù hợp
             preview_funcs = {
                 'word': docx_to_pdf,
                 'excel': xlsx_to_pdf,
@@ -123,16 +101,15 @@ def convert():
         else:
             return f"Lỗi: {result['message']}", 500
 
-# --- ROUTE XEM PREVIEW TỪ LỊCH SỬ ---
-@app.route('/preview/<output_filename>')
-def preview_history(output_filename):
-    output_path = os.path.join(app.config['UPLOAD_FOLDER'], output_filename)
 
-    # Kiểm tra file có tồn tại không
+@main_bp.route('/preview/<output_filename>')
+def preview_history(output_filename):
+    """Xem trước file từ lịch sử"""
+    output_path = os.path.join(current_app.config['UPLOAD_FOLDER'], output_filename)
+
     if not os.path.exists(output_path):
         return "File không tồn tại hoặc đã bị xóa!", 404
 
-    # Xác định định dạng file dựa trên extension
     ext = os.path.splitext(output_filename)[1].lower()
     format_map = {
         '.docx': ('word', docx_to_pdf),
@@ -141,11 +118,9 @@ def preview_history(output_filename):
     }
     output_format, preview_func = format_map.get(ext, ('word', docx_to_pdf))
 
-    # Tên file PDF preview
     pdf_preview_filename = os.path.splitext(output_filename)[0] + '_preview.pdf'
-    pdf_preview_path = os.path.join(app.config['UPLOAD_FOLDER'], pdf_preview_filename)
+    pdf_preview_path = os.path.join(current_app.config['UPLOAD_FOLDER'], pdf_preview_filename)
 
-    # Kiểm tra nếu PDF preview chưa có thì tạo mới
     if not os.path.exists(pdf_preview_path):
         preview_result = preview_func(output_path, pdf_preview_path)
         if not preview_result['status']:
@@ -160,42 +135,39 @@ def preview_history(output_filename):
                            docx_filename=output_filename,
                            output_format=output_format)
 
-# --- ROUTE XEM FILE PDF (Không download, hiển thị trong browser) ---
-@app.route('/view/<filename>')
+
+@main_bp.route('/view/<filename>')
 def view_file(filename):
-    file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+    """Xem file (không download)"""
+    file_path = os.path.join(current_app.config['UPLOAD_FOLDER'], filename)
 
     if os.path.exists(file_path):
-        # as_attachment=False để browser hiển thị thay vì tải về
         return send_file(file_path, as_attachment=False)
     else:
         return "File không tồn tại hoặc đã bị xóa!", 404
 
-# --- ROUTE TẢI FILE ---
-@app.route('/download/<filename>')
-def download_file(filename):
-    # Đường dẫn file cần tải
-    file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
 
-    # Kiểm tra file có tồn tại không để tránh lỗi
+@main_bp.route('/download/<filename>')
+def download_file(filename):
+    """Tải file về"""
+    file_path = os.path.join(current_app.config['UPLOAD_FOLDER'], filename)
+
     if os.path.exists(file_path):
         return send_file(file_path, as_attachment=True)
     else:
         return "File không tồn tại hoặc đã bị xóa!", 404
 
 
-# --- ROUTE XÓA LỊCH SỬ ĐƠN LẺ ---
-@app.route('/delete/<int:id>')
+@main_bp.route('/delete/<int:id>')
 def delete_history(id):
+    """Xóa một record trong lịch sử"""
     record = History.query.get(id)
     if record:
-        # Xóa file đã chuyển đổi nếu tồn tại
         if record.docx_filename:
-            file_path = os.path.join(app.config['UPLOAD_FOLDER'], record.docx_filename)
+            file_path = os.path.join(current_app.config['UPLOAD_FOLDER'], record.docx_filename)
             if os.path.exists(file_path):
                 os.remove(file_path)
-            # Xóa file preview PDF nếu có
-            preview_path = os.path.join(app.config['UPLOAD_FOLDER'],
+            preview_path = os.path.join(current_app.config['UPLOAD_FOLDER'],
                                         os.path.splitext(record.docx_filename)[0] + '_preview.pdf')
             if os.path.exists(preview_path):
                 os.remove(preview_path)
@@ -203,33 +175,25 @@ def delete_history(id):
         db.session.delete(record)
         db.session.commit()
 
-    return redirect(url_for('index'))
+    return redirect(url_for('main.index'))
 
 
-# --- ROUTE XÓA TẤT CẢ LỊCH SỬ ---
-@app.route('/delete-all')
+@main_bp.route('/delete-all')
 def delete_all_history():
-    # Lấy tất cả records
+    """Xóa tất cả lịch sử"""
     records = History.query.all()
 
     for record in records:
-        # Xóa file đã chuyển đổi nếu tồn tại
         if record.docx_filename:
-            file_path = os.path.join(app.config['UPLOAD_FOLDER'], record.docx_filename)
+            file_path = os.path.join(current_app.config['UPLOAD_FOLDER'], record.docx_filename)
             if os.path.exists(file_path):
                 os.remove(file_path)
-            # Xóa file preview PDF nếu có
-            preview_path = os.path.join(app.config['UPLOAD_FOLDER'],
+            preview_path = os.path.join(current_app.config['UPLOAD_FOLDER'],
                                         os.path.splitext(record.docx_filename)[0] + '_preview.pdf')
             if os.path.exists(preview_path):
                 os.remove(preview_path)
 
-    # Xóa tất cả records trong database
     History.query.delete()
     db.session.commit()
 
-    return redirect(url_for('index'))
-
-
-if __name__ == '__main__':
-    app.run(debug=True)
+    return redirect(url_for('main.index'))

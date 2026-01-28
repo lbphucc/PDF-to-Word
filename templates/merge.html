@@ -1,0 +1,141 @@
+{% extends "base.html" %}
+
+{% set active_page = 'merge' %}
+
+{% block title %}Merge PDF{% endblock %}
+
+{% block content %}
+<div class="merge-container">
+    <h2>GHÉP PDF</h2>
+
+    <!-- 2 O -->
+    <div class="edit-area">
+        <!-- PREVIEW -->
+        <div class="preview-box">
+            <iframe id="pdfPreview"></iframe>
+        </div>
+
+        <!-- OPTIONS -->
+        <div class="option-box">
+            <label class="upload-box">
+                <input type="file" id="pdfInput" multiple accept="application/pdf" hidden />
+                Kéo thả hoặc bấm chọn ít nhất 2 file PDF
+            </label>
+            <h5>Tùy chọn ghép</h5>
+
+            <label>
+                <input type="radio" name="sortMode" value="default" checked />
+                Thứ tự mặc định
+            </label>
+
+            <label>
+                <input type="radio" name="sortMode" value="drag" />
+                Kéo thả để sắp xếp
+            </label>
+
+            <p class="hint">
+                Khi bật kéo thả, bạn có thể kéo các file bên dưới để thay đổi thứ tự ghép.
+            </p>
+
+            <button id="mergeBtn" class="btn-main" disabled>Merge PDF</button>
+        </div>
+    </div>
+
+    <ul id="fileList" class="file-list"></ul>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    const input = document.getElementById("pdfInput");
+    const list = document.getElementById("fileList");
+    const btn = document.getElementById("mergeBtn");
+    const preview = document.getElementById("pdfPreview");
+
+    let files = [];
+    let dragIndex = null;
+
+    input.addEventListener("change", () => {
+        files = [...input.files];
+        render();
+        if (files.length > 0) showPreview(0);
+    });
+
+    function render() {
+        list.innerHTML = "";
+
+        files.forEach((file, i) => {
+            const li = document.createElement("li");
+            li.className = "file-item";
+            li.draggable = isDragMode();
+            li.dataset.index = i;
+
+            li.innerHTML = `
+                <span class="file-name">${file.name}</span>
+                <button class="remove">✖</button>
+            `;
+
+            li.querySelector(".file-name").onclick = () => {
+                showPreview(i);
+                setActive(li);
+            };
+
+            li.querySelector(".remove").onclick = () => {
+                files.splice(i, 1);
+                render();
+            };
+
+            li.addEventListener("dragstart", () => (dragIndex = i));
+            li.addEventListener("dragover", (e) => e.preventDefault());
+            li.addEventListener("drop", () => swapFiles(i));
+
+            list.appendChild(li);
+        });
+
+        btn.disabled = files.length < 2;
+    }
+
+    function swapFiles(dropIndex) {
+        if (dragIndex === null || dragIndex === dropIndex) return;
+        [files[dragIndex], files[dropIndex]] = [files[dropIndex], files[dragIndex]];
+        dragIndex = null;
+        render();
+    }
+
+    function showPreview(index) {
+        preview.src = URL.createObjectURL(files[index]);
+    }
+
+    function setActive(activeLi) {
+        document.querySelectorAll(".file-item").forEach((li) => li.classList.remove("active"));
+        activeLi.classList.add("active");
+    }
+
+    function isDragMode() {
+        return document.querySelector('input[name="sortMode"]:checked').value === "drag";
+    }
+
+    document.querySelectorAll('input[name="sortMode"]').forEach((radio) => {
+        radio.addEventListener("change", render);
+    });
+
+    btn.onclick = async () => {
+        const formData = new FormData();
+        files.forEach((f) => formData.append("pdf_files", f));
+
+        btn.innerText = "Dang ghep...";
+        btn.disabled = true;
+
+        const res = await fetch("/merge", { method: "POST", body: formData });
+        const blob = await res.blob();
+
+        const a = document.createElement("a");
+        a.href = URL.createObjectURL(blob);
+        a.download = "merged.pdf";
+        a.click();
+
+        btn.innerText = "Merge PDF";
+        btn.disabled = false;
+    };
+</script>
+{% endblock %}

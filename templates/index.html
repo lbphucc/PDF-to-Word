@@ -1,41 +1,51 @@
 {% extends "base.html" %}
 
-{% block title %}Trang chủ{% endblock %}
+{% set active_page = 'convert' %}
+
+{% block title %}PDF Converter{% endblock %}
 
 {% block content %}
+<!-- Header -->
+<div class="container-fluid mb-4 mt-4">
+    <div class="text-center">
+        <h2 class="text-primary fw-bold">PDF Converter</h2>
+        <p class="text-muted">
+            Công cụ hỗ trợ chuyển đổi tài liệu PDF sang Word, Excel, PowerPoint
+        </p>
+    </div>
+</div>
+
 <div class="container-fluid">
     <div class="row g-4">
-        <!-- CỘT TRÁI: Chọn định dạng đầu ra -->
+        <!-- COT TRAI: Chon dinh dang dau ra -->
         <div class="col-lg-3 col-md-4">
             <div class="card">
-                <div class="card-header">
-                    Định dạng đầu ra
-                </div>
+                <div class="card-header">Định dạng đầu ra</div>
                 <div class="card-body">
                     <button type="button" class="btn btn-outline-primary format-btn active" data-format="word">
                         <span class="format-icon">📄</span>
-                        <span><strong>Word</strong><br><small class="text-muted"></small></span>
+                        <span><strong>Word</strong><br /><small class="text-muted"></small></span>
                     </button>
 
                     <button type="button" class="btn btn-outline-success format-btn" data-format="excel">
                         <span class="format-icon">📊</span>
-                        <span><strong>Excel</strong><br><small class="text-muted"></small></span>
+                        <span><strong>Excel</strong><br /><small class="text-muted"></small></span>
                     </button>
 
                     <button type="button" class="btn btn-outline-danger format-btn" data-format="powerpoint">
                         <span class="format-icon">📽️</span>
-                        <span><strong>PowerPoint</strong><br><small class="text-muted"></small></span>
+                        <span><strong>PowerPoint</strong><br /><small class="text-muted"></small></span>
                     </button>
 
-                    <hr>
+                    <hr />
 
                     <label class="form-label fw-bold">Chế độ xử lý:</label>
 
                     <div class="mode-option selected" data-mode="local" id="modeLocalOption">
                         <div class="form-check mb-0">
-                            <input class="form-check-input" type="radio" name="mode" id="modeLocal" value="local" checked>
+                            <input class="form-check-input" type="radio" name="mode" id="modeLocal" value="local" checked />
                             <label class="form-check-label" for="modeLocal">
-                                <strong>Cơ bản</strong><br>
+                                <strong>Cơ bản</strong><br />
                                 <small class="text-muted">Nhanh, Offline</small>
                             </label>
                         </div>
@@ -43,50 +53,46 @@
 
                     <div class="mode-option" data-mode="cloud" id="modeCloudOption">
                         <div class="form-check mb-0">
-                            <input class="form-check-input" type="radio" name="mode" id="modeCloud" value="cloud">
+                            <input class="form-check-input" type="radio" name="mode" id="modeCloud" value="cloud" />
                             <label class="form-check-label" for="modeCloud">
                                 <strong>Chất lượng cao</strong>
-                                <span class="badge bg-warning text-dark">Khuyên dùng</span><br>
+                                <span class="badge bg-warning text-dark">Khuyên dùng</span><br />
                                 <small class="text-muted">Chuẩn, Online</small>
                             </label>
                         </div>
                     </div>
 
-                    <div class="alert alert-info mt-3 mb-0" id="formatNote" style="font-size: 0.85rem;">
+                    <div class="alert alert-info mt-3 mb-0" id="formatNote" style="font-size: 0.85rem">
                         <strong>Lưu ý:</strong> Word hỗ trợ cả 2 chế độ. Excel và PowerPoint chỉ hỗ trợ Cloud.
                     </div>
                 </div>
             </div>
         </div>
 
-        <!-- CỘT GIỮA: Tải file để chuyển đổi -->
+        <!-- COT GIUA: Tai file de chuyen doi -->
         <div class="col-lg-5 col-md-4">
             <div class="card">
-                <div class="card-header">
-                    Chuyển đổi file
-                </div>
+                <div class="card-header">Chuyển đổi file</div>
                 <div class="card-body">
                     {% if error %}
-                    <div class="alert alert-danger" role="alert">
-                        {{ error }}
-                    </div>
+                    <div class="alert alert-danger" role="alert">{{ error }}</div>
                     {% endif %}
 
                     <form action="/convert" method="post" enctype="multipart/form-data" id="convertForm">
-                        <input type="hidden" name="output_format" id="outputFormat" value="word">
-                        <input type="hidden" name="mode" id="modeInput" value="local">
+                        <input type="hidden" name="output_format" id="outputFormat" value="word" />
+                        <input type="hidden" name="mode" id="modeInput" value="local" />
 
                         <div class="upload-zone mb-4" id="uploadZone">
                             <div class="mb-3">
                                 <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" fill="#6c757d" viewBox="0 0 16 16">
-                                    <path d="M.5 9.9a.5.5 0 0 1 .5.5v2.5a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-2.5a.5.5 0 0 1 1 0v2.5a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2v-2.5a.5.5 0 0 1 .5-.5z"/>
-                                    <path d="M7.646 1.146a.5.5 0 0 1 .708 0l3 3a.5.5 0 0 1-.708.708L8.5 2.707V11.5a.5.5 0 0 1-1 0V2.707L5.354 4.854a.5.5 0 1 1-.708-.708l3-3z"/>
+                                    <path d="M.5 9.9a.5.5 0 0 1 .5.5v2.5a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-2.5a.5.5 0 0 1 1 0v2.5a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2v-2.5a.5.5 0 0 1 .5-.5z" />
+                                    <path d="M7.646 1.146a.5.5 0 0 1 .708 0l3 3a.5.5 0 0 1-.708.708L8.5 2.707V11.5a.5.5 0 0 1-1 0V2.707L5.354 4.854a.5.5 0 1 1-.708-.708l3-3z" />
                                 </svg>
                             </div>
                             <h5 class="text-muted">Kéo thả file PDF vào đây</h5>
                             <p class="text-muted mb-3">hoặc</p>
                             <label for="pdfFile" class="btn btn-primary">Chọn file PDF</label>
-                            <input type="file" id="pdfFile" name="pdf_file" accept=".pdf" required style="display: none;">
+                            <input type="file" id="pdfFile" name="pdf_file" accept=".pdf" required style="display: none" />
                             <p class="text-muted mt-3 mb-0" id="fileName">Chưa chọn file nào</p>
                         </div>
 
@@ -99,7 +105,7 @@
             </div>
         </div>
 
-        <!-- CỘT PHẢI: Lịch sử chuyển đổi -->
+        <!-- COT PHAI: Lich su chuyen doi -->
         <div class="col-lg-4 col-md-4">
             <div class="card">
                 <div class="card-header d-flex justify-content-between align-items-center">
@@ -112,7 +118,7 @@
                 </div>
                 <div class="card-body p-0">
                     <div class="history-table-container">
-                        <table class="table table-sm table-hover mb-0" style="font-size: 0.85rem;">
+                        <table class="table table-sm table-hover mb-0" style="font-size: 0.85rem">
                             <thead class="table-light sticky-top">
                                 <tr>
                                     <th>Thời gian</th>
@@ -130,32 +136,26 @@
                                     </td>
                                     <td>
                                         {% if item.output_format == 'excel' %}
-                                            <span class="badge bg-success">Excel</span>
+                                        <span class="badge bg-success">Excel</span>
                                         {% elif item.output_format == 'powerpoint' %}
-                                            <span class="badge bg-danger">PPT</span>
+                                        <span class="badge bg-danger">PPT</span>
                                         {% else %}
-                                            <span class="badge bg-primary">Word</span>
+                                        <span class="badge bg-primary">Word</span>
                                         {% endif %}
                                     </td>
                                     <td>
                                         {% if item.status == 'Success' and item.file_exists %}
-                                            <a href="{{ url_for('preview_history', output_filename=item.docx_filename) }}"
-                                               class="btn btn-sm btn-outline-success py-0 px-1" title="Xem">
-                                                👁
-                                            </a>
-                                            <a href="{{ url_for('download_file', filename=item.docx_filename) }}"
-                                               class="btn btn-sm btn-outline-primary py-0 px-1" title="Tải">
-                                                ⬇
-                                            </a>
-                                            <a href="{{ url_for('delete_history', id=item.id) }}"
-                                               class="btn btn-sm btn-outline-danger py-0 px-1" title="Xóa"
-                                               onclick="return confirm('Bạn có chắc muốn xóa?')">
-                                                ✕
-                                            </a>
+                                        <a href="{{ url_for('main.preview_history', output_filename=item.docx_filename) }}"
+                                           class="btn btn-sm btn-outline-success py-0 px-1" title="Xem">👁</a>
+                                        <a href="{{ url_for('main.download_file', filename=item.docx_filename) }}"
+                                           class="btn btn-sm btn-outline-primary py-0 px-1" title="Tai">⬇</a>
+                                        <a href="{{ url_for('main.delete_history', id=item.id) }}"
+                                           class="btn btn-sm btn-outline-danger py-0 px-1" title="Xoa"
+                                           onclick="return confirm('Ban co chac muon xoa?');">✕</a>
                                         {% elif item.status == 'Success' and not item.file_exists %}
-                                            <span class="text-muted small">Đã xóa</span>
+                                        <span class="text-muted small">Đã xóa</span>
                                         {% else %}
-                                            <span class="text-danger small">Lỗi</span>
+                                        <span class="text-danger small">Lỗi</span>
                                         {% endif %}
                                     </td>
                                 </tr>
@@ -172,4 +172,125 @@
         </div>
     </div>
 </div>
+{% endblock %}
+
+{% block modals %}
+<!-- Modal xac nhan xoa tat ca -->
+<div class="modal fade" id="deleteModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Xac nhan xoa</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                Bạn có chắc chắn muốn xóa <strong>tất cả</strong> lịch sử chuyển đổi không?
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Hủy</button>
+                <a href="{{ url_for('main.delete_all_history') }}" class="btn btn-danger">Xóa tất cả</a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Xu ly chon dinh dang dau ra
+    const formatBtns = document.querySelectorAll(".format-btn");
+    const outputFormat = document.getElementById("outputFormat");
+    const btnText = document.getElementById("btnText");
+    const modeLocal = document.getElementById("modeLocal");
+    const modeCloud = document.getElementById("modeCloud");
+    const modeLocalOption = document.getElementById("modeLocalOption");
+    const modeCloudOption = document.getElementById("modeCloudOption");
+    const modeInput = document.getElementById("modeInput");
+
+    const formatNames = {
+        word: "Word",
+        excel: "Excel",
+        powerpoint: "PowerPoint",
+    };
+
+    formatBtns.forEach((btn) => {
+        btn.addEventListener("click", function () {
+            formatBtns.forEach((b) => b.classList.remove("active"));
+            this.classList.add("active");
+
+            const format = this.dataset.format;
+            outputFormat.value = format;
+            btnText.innerText = "Chuyển đổi sang " + formatNames[format];
+
+            if (format === "excel" || format === "powerpoint") {
+                modeCloud.checked = true;
+                modeLocal.disabled = true;
+                modeLocalOption.style.opacity = "0.5";
+                modeLocalOption.style.pointerEvents = "none";
+                modeCloudOption.classList.add("selected");
+                modeLocalOption.classList.remove("selected");
+                modeInput.value = "cloud";
+            } else {
+                modeLocal.disabled = false;
+                modeLocalOption.style.opacity = "1";
+                modeLocalOption.style.pointerEvents = "auto";
+            }
+        });
+    });
+
+    // Xu ly chon che do
+    document.querySelectorAll(".mode-option").forEach((option) => {
+        option.addEventListener("click", function () {
+            if (this.style.pointerEvents === "none") return;
+
+            document.querySelectorAll(".mode-option").forEach((o) => o.classList.remove("selected"));
+            this.classList.add("selected");
+
+            const mode = this.dataset.mode;
+            document.getElementById("mode" + mode.charAt(0).toUpperCase() + mode.slice(1)).checked = true;
+            modeInput.value = mode;
+        });
+    });
+
+    // Xu ly drag & drop
+    const uploadZone = document.getElementById("uploadZone");
+    const fileInput = document.getElementById("pdfFile");
+    const fileName = document.getElementById("fileName");
+
+    uploadZone.addEventListener("dragover", (e) => {
+        e.preventDefault();
+        uploadZone.classList.add("dragover");
+    });
+
+    uploadZone.addEventListener("dragleave", () => {
+        uploadZone.classList.remove("dragover");
+    });
+
+    uploadZone.addEventListener("drop", (e) => {
+        e.preventDefault();
+        uploadZone.classList.remove("dragover");
+
+        const files = e.dataTransfer.files;
+        if (files.length > 0 && files[0].type === "application/pdf") {
+            fileInput.files = files;
+            fileName.innerHTML = '<strong class="text-success">' + files[0].name + "</strong>";
+        }
+    });
+
+    fileInput.addEventListener("change", function () {
+        if (this.files.length > 0) {
+            fileName.innerHTML = '<strong class="text-success">' + this.files[0].name + "</strong>";
+        }
+    });
+
+    // Xu ly submit
+    document.getElementById("convertForm").addEventListener("submit", function () {
+        var btn = document.getElementById("submitBtn");
+        var spinner = document.getElementById("spinner");
+
+        btn.disabled = true;
+        spinner.style.display = "inline-block";
+        btnText.innerText = " Đang xử lý...";
+    });
+</script>
 {% endblock %}
