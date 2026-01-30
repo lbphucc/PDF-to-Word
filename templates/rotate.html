@@ -17,7 +17,7 @@
         </div>
 
         <!-- OPTIONS -->
-        <div class="option-box">
+        <div class="option-box" id="optionBox">
             <!-- Upload -->
             <div class="upload-box" onclick="document.getElementById('pdfInput').click()">
                 Kéo thả hoặc bấm chọn file PDF
@@ -43,6 +43,23 @@
 
             <button class="btn-main" disabled id="rotateBtn">Xoay PDF</button>
         </div>
+
+        <!-- ===== RESULT BOX (ẩn mặc định) ===== -->
+        <div class="option-box" id="resultBox" style="display: none;">
+            <div class="alert alert-success">
+                <strong>Xoay trang thành công!</strong><br>
+                Xem trước kết quả bên cạnh. Nếu hài lòng, nhấn "Tải về".
+            </div>
+
+            <div class="d-grid gap-2">
+                <button type="button" id="downloadBtn" class="btn btn-success btn-lg">
+                    Tải về
+                </button>
+                <button type="button" id="cancelBtn" class="btn btn-outline-secondary">
+                    Hủy & Làm lại
+                </button>
+            </div>
+        </div>
     </div>
 </div>
 {% endblock %}
@@ -54,10 +71,18 @@
     const btn = document.getElementById("rotateBtn");
     const angleSelect = document.getElementById("angle");
     const rangeInput = document.getElementById("pageRange");
+    const optionBox = document.getElementById("optionBox");
+    const resultBox = document.getElementById("resultBox");
+    const downloadBtn = document.getElementById("downloadBtn");
+    const cancelBtn = document.getElementById("cancelBtn");
+
+    let originalFile = null;
+    let currentResult = null;
 
     input.addEventListener("change", () => {
         const file = input.files[0];
         if (file) {
+            originalFile = file;
             preview.src = URL.createObjectURL(file);
             btn.disabled = false;
         }
@@ -84,25 +109,49 @@
                 body: formData,
             });
 
-            if (!res.ok) {
-                const text = await res.text();
-                throw new Error(text);
+            const data = await res.json();
+
+            if (!res.ok || data.error) {
+                alert(data.error || "Có lỗi xảy ra");
+                throw new Error("Rotate failed");
             }
 
-            const blob = await res.blob();
-            const url = URL.createObjectURL(blob);
+            // Lưu kết quả và hiển thị preview
+            currentResult = data;
+            preview.src = data.preview_url;
 
-            const a = document.createElement("a");
-            a.href = url;
-            a.download = "rotated.pdf";
-            a.click();
+            // Ẩn option box, hiện result box
+            optionBox.style.display = "none";
+            resultBox.style.display = "block";
+
         } catch (e) {
-            alert("Xoay PDF thất bại (xem console)");
             console.error(e);
         } finally {
             btn.innerText = "Xoay PDF";
             btn.disabled = false;
         }
     });
+
+    // Nút tải về
+    downloadBtn.onclick = () => {
+        if (currentResult) {
+            window.location.href = currentResult.download_url;
+        }
+    };
+
+    // Nút hủy
+    cancelBtn.onclick = async () => {
+        if (currentResult) {
+            await fetch(`/cancel-result/${currentResult.filename}`);
+        }
+
+        // Reset UI
+        currentResult = null;
+        optionBox.style.display = "block";
+        resultBox.style.display = "none";
+        if (originalFile) {
+            preview.src = URL.createObjectURL(originalFile);
+        }
+    };
 </script>
 {% endblock %}

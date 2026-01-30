@@ -16,7 +16,7 @@
             </div>
 
             <!-- ===== OPTIONS ===== -->
-            <div class="option-box">
+            <div class="option-box" id="optionBox">
                 <label class="upload-box">
                     <input type="file" id="pdfInput" name="pdf_file" accept="application/pdf" hidden />
                     Kéo thả hoặc bấm để chọn 1 file PDF
@@ -50,6 +50,23 @@
 
                 <button type="button" id="splitBtn" class="btn-main" disabled>Tách PDF</button>
             </div>
+
+            <!-- ===== RESULT BOX (ẩn mặc định) ===== -->
+            <div class="option-box" id="resultBox" style="display: none;">
+                <div class="alert alert-success">
+                    <strong>Xử lý thành công!</strong><br>
+                    Xem trước kết quả bên cạnh. Nếu hài lòng, nhấn "Tải về".
+                </div>
+
+                <div class="d-grid gap-2">
+                    <button type="button" id="downloadBtn" class="btn btn-success btn-lg">
+                        Tải về
+                    </button>
+                    <button type="button" id="cancelBtn" class="btn btn-outline-secondary">
+                        Hủy & Làm lại
+                    </button>
+                </div>
+            </div>
         </div>
     </div>
 </form>
@@ -61,7 +78,13 @@
     const fileName = document.getElementById("fileName");
     const btn = document.getElementById("splitBtn");
     const preview = document.getElementById("pdfPreview");
+    const optionBox = document.getElementById("optionBox");
+    const resultBox = document.getElementById("resultBox");
+    const downloadBtn = document.getElementById("downloadBtn");
+    const cancelBtn = document.getElementById("cancelBtn");
+
     let file = null;
+    let currentResult = null;
 
     input.addEventListener("change", () => {
         file = input.files[0];
@@ -134,29 +157,51 @@
                 body: formData,
             });
 
-            if (!res.ok) {
-                const text = await res.text();
-                alert(text);
+            const data = await res.json();
+
+            if (!res.ok || data.error) {
+                alert(data.error || "Có lỗi xảy ra");
                 throw new Error("Split failed");
             }
 
-            const blob = await res.blob();
-            const url = window.URL.createObjectURL(blob);
+            // Lưu kết quả và hiển thị preview
+            currentResult = data;
+            preview.src = data.preview_url;
 
-            const a = document.createElement("a");
-            a.href = url;
-            a.download = mode === "merge" ? "split.pdf" : "split.zip";
-            document.body.appendChild(a);
-            a.click();
-            a.remove();
+            // Ẩn option box, hiện result box
+            optionBox.style.display = "none";
+            resultBox.style.display = "block";
 
-            window.URL.revokeObjectURL(url);
         } catch (err) {
             console.error(err);
         } finally {
             btn.disabled = false;
             btn.innerText = "Tách PDF";
         }
+    };
+
+    // Nút tải về
+    downloadBtn.onclick = () => {
+        if (currentResult) {
+            window.location.href = currentResult.download_url;
+        }
+    };
+
+    // Nút hủy
+    cancelBtn.onclick = async () => {
+        if (currentResult) {
+            // Xóa file trên server
+            await fetch(`/cancel-result/${currentResult.filename}`);
+            if (currentResult.preview_filename) {
+                await fetch(`/cancel-result/${currentResult.preview_filename}`);
+            }
+        }
+
+        // Reset UI
+        currentResult = null;
+        optionBox.style.display = "block";
+        resultBox.style.display = "none";
+        preview.src = file ? URL.createObjectURL(file) : "";
     };
 </script>
 {% endblock %}

@@ -5,7 +5,7 @@ import os
 import uuid
 import zipfile
 from datetime import datetime
-from flask import Blueprint, render_template, request, send_file, current_app
+from flask import Blueprint, render_template, request, send_file, current_app, jsonify, url_for
 from PyPDF2 import PdfMerger
 from pypdf import PdfReader, PdfWriter
 
@@ -28,7 +28,7 @@ def merge_post():
     print('FILES:', files)
 
     if not files or len(files) < 2:
-        return 'Cần chọn ít nhất 2 file PDF', 400
+        return jsonify({'error': 'Cần chọn ít nhất 2 file PDF'}), 400
 
     merger = PdfMerger()
 
@@ -37,18 +37,19 @@ def merge_post():
             continue
         merger.append(file)
 
-    output_name = f'merged_{int(datetime.now().timestamp())}.pdf'
+    output_name = f'merged_{uuid.uuid4().hex}.pdf'
     output_path = os.path.join(current_app.config['UPLOAD_FOLDER'], output_name)
 
     merger.write(output_path)
     merger.close()
 
-    return send_file(
-        output_path,
-        mimetype='application/pdf',
-        as_attachment=True,
-        download_name='merged.pdf'
-    )
+    # Trả về JSON để frontend hiển thị preview
+    return jsonify({
+        'success': True,
+        'filename': output_name,
+        'preview_url': url_for('merge.preview_result', filename=output_name),
+        'download_url': url_for('merge.download_result', filename=output_name)
+    })
 
 
 @merge_bp.route('/split', methods=['GET'])
@@ -65,7 +66,7 @@ def split_post():
     mode = request.form.get('split_mode', 'merge')
 
     if not file:
-        return 'Chưa chọn file PDF', 400
+        return jsonify({'error': 'Chưa chọn file PDF'}), 400
 
     reader = PdfReader(file)
     total_pages = len(reader.pages)
@@ -74,46 +75,117 @@ def split_post():
     if mode == 'merge':
         pages, error = parse_ranges(ranges, total_pages)
         if error:
-            return error, 400
+            return jsonify({'error': error}), 400
 
         writer = PdfWriter()
         for i in pages:
             writer.add_page(reader.pages[i])
 
-        output = f'merged_{uuid.uuid4().hex}.pdf'
-        with open(output, 'wb') as f:
+        output_name = f'split_{uuid.uuid4().hex}.pdf'
+        output_path = os.path.join(current_app.config['UPLOAD_FOLDER'], output_name)
+        with open(output_path, 'wb') as f:
             writer.write(f)
 
-        return send_file(
-            output,
-            as_attachment=True,
-            download_name='split.pdf'
-        )
+        return jsonify({
+            'success': True,
+            'filename': output_name,
+            'preview_url': url_for('merge.preview_result', filename=output_name),
+            'download_url': url_for('merge.download_result', filename=output_name),
+            'is_zip': False
+        })
 
     # SEPARATE MODE - Tách riêng từng range
     zip_name = f'split_{uuid.uuid4().hex}.zip'
-    with zipfile.ZipFile(zip_name, 'w', zipfile.ZIP_DEFLATED) as zipf:
+    zip_path = os.path.join(current_app.config['UPLOAD_FOLDER'], zip_name)
+    
+    # Cũng tạo một file PDF preview từ range đầu tiên
+    preview_name = f'preview_{uuid.uuid4().hex}.pdf'
+    preview_path = os.path.join(current_app.config['UPLOAD_FOLDER'], preview_name)
+    first_range_saved = False
+    
+    with zipfile.ZipFile(zip_path, 'w', zipfile.ZIP_DEFLATED) as zipf:
         for idx, r in enumerate(ranges, start=1):
             pages, error = parse_ranges([r], total_pages)
             if error:
-                return error, 400
+                return jsonify({'error': error}), 400
 
             writer = PdfWriter()
             for i in pages:
                 writer.add_page(reader.pages[i])
 
             pdf_name = f'range_{idx}.pdf'
-            with open(pdf_name, 'wb') as f:
+            pdf_path = os.path.join(current_app.config['UPLOAD_FOLDER'], pdf_name)
+            with open(pdf_path, 'wb') as f:
                 writer.write(f)
 
-            zipf.write(pdf_name)
-            os.remove(pdf_name)
+            # Lưu range đầu tiên làm preview
+            if not first_range_saved:
+                import shutil
+                shutil.copy(pdf_path, preview_path)
+                first_range_saved = True
 
-    return send_file(
-        zip_name,
-        as_attachment=True,
-        download_name='split.zip'
-    )
+            zipf.write(pdf_path, pdf_name)
+            os.remove(pdf_path)
+
+    return jsonify({
+        'success': True,
+        'filename': zip_name,
+        'preview_url': url_for('merge.preview_result', filename=preview_name),
+        'download_url': url_for('merge.download_result', filename=zip_name),
+        'is_zip': True,
+        'preview_filename': preview_name
+    })
+
+
+@merge_bp.route('/preview-result/<filename>')
+def preview_result(filename):
+    """Xem preview file PDF kết quả"""
+    file_path = os.path.join(current_app.config['UPLOAD_FOLDER'], filename)
+    
+    if os.path.exists(file_path):
+        return send_file(file_path, mimetype='application/pdf')
+    else:
+        return "File không tồn tại", 404
+
+
+@merge_bp.route('/download-result/<filename>')
+def download_result(filename):
+    """Tải file kết quả về"""
+    file_path = os.path.join(current_app.config['UPLOAD_FOLDER'], filename)
+    
+    if os.path.exists(file_path):
+        # Xác định download_name dựa trên extension
+        ext = os.path.splitext(filename)[1].lower()
+        if ext == '.zip':
+            download_name = 'split.zip'
+        elif 'split' in filename:
+            download_name = 'split.pdf'
+        elif 'merged' in filename:
+            download_name = 'merged.pdf'
+        elif 'rotated' in filename:
+            download_name = 'rotated.pdf'
+        elif 'numbered' in filename:
+            download_name = 'numbered.pdf'
+        elif 'watermarked' in filename:
+            download_name = 'watermarked.pdf'
+        else:
+            download_name = filename
+            
+        return send_file(file_path, as_attachment=True, download_name=download_name)
+    else:
+        return "File không tồn tại", 404
+
+
+@merge_bp.route('/cancel-result/<filename>')
+def cancel_result(filename):
+    """Xóa file kết quả khi người dùng hủy"""
+    file_path = os.path.join(current_app.config['UPLOAD_FOLDER'], filename)
+    
+    if os.path.exists(file_path):
+        os.remove(file_path)
+        return jsonify({'success': True})
+    
+    return jsonify({'success': True})
 
 
 @merge_bp.route('/compress')

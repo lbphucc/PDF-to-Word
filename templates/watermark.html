@@ -16,7 +16,7 @@
             <iframe id="pdfPreview"></iframe>
         </div>
 
-        <div class="option-box">
+        <div class="option-box" id="optionBox">
             <label class="upload-box">
                 <input type="file" id="pdfInput" multiple accept="application/pdf" hidden />
                 Kéo thả hoặc bấm chọn file PDF
@@ -38,13 +38,15 @@
                     <div class="col-12">
                         <div class="border rounded p-3">
                             <div class="form-check mb-2">
-                                <input class="form-check-input" type="radio" name="wmType" id="wmImageType" value="image" checked />
+                                <input class="form-check-input" type="radio" name="wmType" id="wmImageType"
+                                    value="image" checked />
                                 <label class="form-check-label fw-semibold">Ảnh</label>
                             </div>
 
                             <div id="imageOptions">
                                 <div class="mb-2">
-                                    <input type="file" class="form-control form-control-sm" id="wmImage" accept="image/*" />
+                                    <input type="file" class="form-control form-control-sm" id="wmImage"
+                                        accept="image/*" />
                                 </div>
                                 <label class="form-label mb-1">
                                     Kích thước ảnh: <span id="imgScaleValue">100</span>%
@@ -58,19 +60,22 @@
                     <div class="col-12">
                         <div class="border rounded p-3">
                             <div class="form-check mb-2">
-                                <input class="form-check-input" type="radio" name="wmType" id="wmTextType" value="text" />
+                                <input class="form-check-input" type="radio" name="wmType" id="wmTextType"
+                                    value="text" />
                                 <label class="form-check-label fw-semibold">Chữ</label>
                             </div>
 
                             <div id="textOptions">
-                                <input type="text" class="form-control form-control-sm mb-2" id="wmText" placeholder="Nhập nội dung: " />
+                                <input type="text" class="form-control form-control-sm mb-2" id="wmText"
+                                    placeholder="Nhập nội dung: " />
 
                                 <div class="row g-2">
                                     <div class="col-6">
                                         <label class="form-label mb-1">
                                             Cỡ chữ: <span id="fontSizeValue">40</span>px
                                         </label>
-                                        <input type="range" class="form-range" id="fontSize" min="10" max="100" value="40" />
+                                        <input type="range" class="form-range" id="fontSize" min="10" max="100"
+                                            value="40" />
                                     </div>
                                     <div class="col-6">
                                         <label class="form-label mb-1">Font chữ</label>
@@ -114,6 +119,23 @@
                 </button>
             </div>
         </div>
+
+        <!-- ===== RESULT BOX (ẩn mặc định) ===== -->
+        <div class="option-box" id="resultBox" style="display: none;">
+            <div class="alert alert-success">
+                <strong>Thêm hình mờ thành công!</strong><br>
+                Xem trước kết quả bên cạnh. Nếu hài lòng, nhấn "Tải về".
+            </div>
+
+            <div class="d-grid gap-2">
+                <button type="button" id="downloadBtn" class="btn btn-success btn-lg">
+                    Tải về
+                </button>
+                <button type="button" id="cancelBtn" class="btn btn-outline-secondary">
+                    Hủy & Làm lại
+                </button>
+            </div>
+        </div>
     </div>
 </div>
 {% endblock %}
@@ -142,14 +164,23 @@
         const opacity = document.getElementById("wmOpacity");
         const opacityValue = document.getElementById("opacityValue");
 
+        const optionBox = document.getElementById("optionBox");
+        const resultBox = document.getElementById("resultBox");
+        const downloadBtn = document.getElementById("downloadBtn");
+        const cancelBtn = document.getElementById("cancelBtn");
+
+        let originalFile = null;
+        let currentResult = null;
+
         // ===== PREVIEW =====
         pdfInput.addEventListener("change", () => {
             if (!pdfInput.files.length) {
                 mergeBtn.disabled = true;
                 return;
             }
+            originalFile = pdfInput.files[0];
             mergeBtn.disabled = false;
-            pdfPreview.src = URL.createObjectURL(pdfInput.files[0]);
+            pdfPreview.src = URL.createObjectURL(originalFile);
         });
 
         // ===== WATERMARK TYPE =====
@@ -188,22 +219,56 @@
             mergeBtn.disabled = true;
             mergeBtn.textContent = "ĐANG XỬ LÝ...";
 
-            const res = await fetch("/watermark", {
-                method: "POST",
-                body: formData,
-            });
+            try {
+                const res = await fetch("/watermark", {
+                    method: "POST",
+                    body: formData,
+                });
 
-            const blob = await res.blob();
-            const url = URL.createObjectURL(blob);
+                const data = await res.json();
 
-            const a = document.createElement("a");
-            a.href = url;
-            a.download = "watermarked.pdf";
-            a.click();
+                if (!res.ok || data.error) {
+                    alert(data.error || "Có lỗi xảy ra");
+                    throw new Error("Watermark failed");
+                }
 
-            mergeBtn.textContent = "WATERMARK PDF";
-            mergeBtn.disabled = false;
+                // Lưu kết quả và hiển thị preview
+                currentResult = data;
+                pdfPreview.src = data.preview_url;
+
+                // Ẩn option box, hiện result box
+                optionBox.style.display = "none";
+                resultBox.style.display = "block";
+
+            } catch (err) {
+                console.error(err);
+            } finally {
+                mergeBtn.textContent = "Thêm hình mờ PDF";
+                mergeBtn.disabled = false;
+            }
         });
+
+        // Nút tải về
+        downloadBtn.onclick = () => {
+            if (currentResult) {
+                window.location.href = currentResult.download_url;
+            }
+        };
+
+        // Nút hủy
+        cancelBtn.onclick = async () => {
+            if (currentResult) {
+                await fetch(`/cancel-result/${currentResult.filename}`);
+            }
+
+            // Reset UI
+            currentResult = null;
+            optionBox.style.display = "block";
+            resultBox.style.display = "none";
+            if (originalFile) {
+                pdfPreview.src = URL.createObjectURL(originalFile);
+            }
+        };
     });
 </script>
 {% endblock %}

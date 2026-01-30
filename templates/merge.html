@@ -16,7 +16,7 @@
         </div>
 
         <!-- OPTIONS -->
-        <div class="option-box">
+        <div class="option-box" id="optionBox">
             <label class="upload-box">
                 <input type="file" id="pdfInput" multiple accept="application/pdf" hidden />
                 Kéo thả hoặc bấm chọn ít nhất 2 file PDF
@@ -39,6 +39,23 @@
 
             <button id="mergeBtn" class="btn-main" disabled>Merge PDF</button>
         </div>
+
+        <!-- ===== RESULT BOX (ẩn mặc định) ===== -->
+        <div class="option-box" id="resultBox" style="display: none;">
+            <div class="alert alert-success">
+                <strong>Ghép file thành công!</strong><br>
+                Xem trước kết quả bên cạnh. Nếu hài lòng, nhấn "Tải về".
+            </div>
+
+            <div class="d-grid gap-2">
+                <button type="button" id="downloadBtn" class="btn btn-success btn-lg">
+                    Tải về
+                </button>
+                <button type="button" id="cancelBtn" class="btn btn-outline-secondary">
+                    Hủy & Làm lại
+                </button>
+            </div>
+        </div>
     </div>
 
     <ul id="fileList" class="file-list"></ul>
@@ -51,9 +68,14 @@
     const list = document.getElementById("fileList");
     const btn = document.getElementById("mergeBtn");
     const preview = document.getElementById("pdfPreview");
+    const optionBox = document.getElementById("optionBox");
+    const resultBox = document.getElementById("resultBox");
+    const downloadBtn = document.getElementById("downloadBtn");
+    const cancelBtn = document.getElementById("cancelBtn");
 
     let files = [];
     let dragIndex = null;
+    let currentResult = null;
 
     input.addEventListener("change", () => {
         files = [...input.files];
@@ -126,16 +148,51 @@
         btn.innerText = "Dang ghep...";
         btn.disabled = true;
 
-        const res = await fetch("/merge", { method: "POST", body: formData });
-        const blob = await res.blob();
+        try {
+            const res = await fetch("/merge", { method: "POST", body: formData });
+            const data = await res.json();
 
-        const a = document.createElement("a");
-        a.href = URL.createObjectURL(blob);
-        a.download = "merged.pdf";
-        a.click();
+            if (!res.ok || data.error) {
+                alert(data.error || "Có lỗi xảy ra");
+                throw new Error("Merge failed");
+            }
 
-        btn.innerText = "Merge PDF";
-        btn.disabled = false;
+            // Lưu kết quả và hiển thị preview
+            currentResult = data;
+            preview.src = data.preview_url;
+
+            // Ẩn option box, hiện result box
+            optionBox.style.display = "none";
+            resultBox.style.display = "block";
+            list.style.display = "none";
+
+        } catch (err) {
+            console.error(err);
+        } finally {
+            btn.innerText = "Merge PDF";
+            btn.disabled = false;
+        }
+    };
+
+    // Nút tải về
+    downloadBtn.onclick = () => {
+        if (currentResult) {
+            window.location.href = currentResult.download_url;
+        }
+    };
+
+    // Nút hủy
+    cancelBtn.onclick = async () => {
+        if (currentResult) {
+            await fetch(`/cancel-result/${currentResult.filename}`);
+        }
+
+        // Reset UI
+        currentResult = null;
+        optionBox.style.display = "block";
+        resultBox.style.display = "none";
+        list.style.display = "block";
+        if (files.length > 0) showPreview(0);
     };
 </script>
 {% endblock %}

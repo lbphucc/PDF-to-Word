@@ -16,7 +16,7 @@
             <iframe id="pdfPreview"></iframe>
         </div>
 
-        <div class="option-box">
+        <div class="option-box" id="optionBox">
             <div class="upload-box" onclick="pdfInput.click()">
                 Kéo thả hoặc bấm chọn file PDF
             </div>
@@ -53,6 +53,23 @@
                 Đánh số trang
             </button>
         </div>
+
+        <!-- ===== RESULT BOX (ẩn mặc định) ===== -->
+        <div class="option-box" id="resultBox" style="display: none;">
+            <div class="alert alert-success">
+                <strong>Đánh số trang thành công!</strong><br>
+                Xem trước kết quả bên cạnh. Nếu hài lòng, nhấn "Tải về".
+            </div>
+
+            <div class="d-grid gap-2">
+                <button type="button" id="downloadBtn" class="btn btn-success btn-lg">
+                    Tải về
+                </button>
+                <button type="button" id="cancelBtn" class="btn btn-outline-secondary">
+                    Hủy & Làm lại
+                </button>
+            </div>
+        </div>
     </div>
 </div>
 {% endblock %}
@@ -67,6 +84,14 @@
     const startNumberInput = document.getElementById("startNumber");
     const endNumberInput = document.getElementById("endNumber");
     const formatSelect = document.getElementById("format");
+
+    const optionBox = document.getElementById("optionBox");
+    const resultBox = document.getElementById("resultBox");
+    const downloadBtn = document.getElementById("downloadBtn");
+    const cancelBtn = document.getElementById("cancelBtn");
+
+    let originalFile = null;
+    let currentResult = null;
 
     // ===== Khi chon file =====
     pdfInput.addEventListener("change", () => {
@@ -86,6 +111,7 @@
         }
 
         // Preview PDF
+        originalFile = file;
         const url = URL.createObjectURL(file);
         preview.src = url;
 
@@ -113,23 +139,21 @@
                 body: formData,
             });
 
-            if (!response.ok) {
-                const errorText = await response.text();
-                alert("Loi: " + errorText);
+            const data = await response.json();
+
+            if (!response.ok || data.error) {
+                alert(data.error || "Có lỗi xảy ra");
                 return;
             }
 
-            const blob = await response.blob();
-            const downloadUrl = window.URL.createObjectURL(blob);
+            // Lưu kết quả và hiển thị preview
+            currentResult = data;
+            preview.src = data.preview_url;
 
-            const a = document.createElement("a");
-            a.href = downloadUrl;
-            a.download = "numbered.pdf";
-            document.body.appendChild(a);
-            a.click();
-            a.remove();
+            // Ẩn option box, hiện result box
+            optionBox.style.display = "none";
+            resultBox.style.display = "block";
 
-            window.URL.revokeObjectURL(downloadUrl);
         } catch (err) {
             console.error(err);
             alert("Có lỗi xảy ra khi đánh số trang");
@@ -138,5 +162,27 @@
             submitBtn.textContent = "Đánh số trang";
         }
     });
+
+    // Nút tải về
+    downloadBtn.onclick = () => {
+        if (currentResult) {
+            window.location.href = currentResult.download_url;
+        }
+    };
+
+    // Nút hủy
+    cancelBtn.onclick = async () => {
+        if (currentResult) {
+            await fetch(`/cancel-result/${currentResult.filename}`);
+        }
+
+        // Reset UI
+        currentResult = null;
+        optionBox.style.display = "block";
+        resultBox.style.display = "none";
+        if (originalFile) {
+            preview.src = URL.createObjectURL(originalFile);
+        }
+    };
 </script>
 {% endblock %}
