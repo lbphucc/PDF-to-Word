@@ -19,11 +19,13 @@ main_bp = Blueprint('main', __name__)
 @main_bp.route('/', methods=['GET'])
 def index():
     """Trang chủ - hiển thị form chuyển đổi và lịch sử"""
-    recent_conversions = History.query.order_by(History.timestamp.desc()).limit(10).all()
+    recent_conversions = History.query.order_by(History.timestamp.desc()).limit(20).all()
 
     for item in recent_conversions:
-        if item.docx_filename:
-            file_path = os.path.join(current_app.config['UPLOAD_FOLDER'], item.docx_filename)
+        # Lấy filename của file kết quả dựa trên loại tool
+        output_file = item.get_output_filename()
+        if output_file:
+            file_path = os.path.join(current_app.config['UPLOAD_FOLDER'], output_file)
             item.file_exists = os.path.exists(file_path)
         else:
             item.file_exists = False
@@ -163,6 +165,7 @@ def delete_history(id):
     """Xóa một record trong lịch sử"""
     record = History.query.get(id)
     if record:
+        # Xóa file kết quả cho convert tool
         if record.docx_filename:
             file_path = os.path.join(current_app.config['UPLOAD_FOLDER'], record.docx_filename)
             if os.path.exists(file_path):
@@ -171,6 +174,12 @@ def delete_history(id):
                                         os.path.splitext(record.docx_filename)[0] + '_preview.pdf')
             if os.path.exists(preview_path):
                 os.remove(preview_path)
+        
+        # Xóa file kết quả cho các tool khác
+        if record.result_filename:
+            file_path = os.path.join(current_app.config['UPLOAD_FOLDER'], record.result_filename)
+            if os.path.exists(file_path):
+                os.remove(file_path)
 
         db.session.delete(record)
         db.session.commit()

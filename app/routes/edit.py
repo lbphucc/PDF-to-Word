@@ -6,6 +6,8 @@ import uuid
 import traceback
 from flask import Blueprint, render_template, request, send_file, current_app, jsonify, url_for
 
+from app.extensions import db
+from app.models.history import History
 from app.services.modifier import rotate_pdf_logic, number_pdf_logic, watermark_text, watermark_image
 
 # Tạo Blueprint
@@ -26,6 +28,7 @@ def rotate_pdf():
         if not pdf:
             return jsonify({'error': 'Chưa chọn file PDF'}), 400
 
+        original_filename = pdf.filename
         pdf.stream.seek(0)
         output_pdf = rotate_pdf_logic(pdf.stream, angle, page_range)
 
@@ -35,6 +38,17 @@ def rotate_pdf():
         
         with open(output_path, 'wb') as f:
             f.write(output_pdf.read())
+
+        # Lưu lịch sử
+        history = History(
+            filename=original_filename,
+            result_filename=output_name,
+            status='Success',
+            tool_type='rotate',
+            message=f'Xoay {angle}°' + (f', trang: {page_range}' if page_range else ', tất cả trang')
+        )
+        db.session.add(history)
+        db.session.commit()
 
         return jsonify({
             'success': True,
@@ -60,6 +74,7 @@ def page_number():
         if not pdf:
             return jsonify({'error': 'Không có file PDF'}), 400
 
+        original_filename = pdf.filename
         page_range = request.form.get('page_range', '').strip()
         start_number = int(request.form.get('start_number', 1))
 
@@ -87,6 +102,17 @@ def page_number():
         with open(output_path, 'wb') as f:
             f.write(output.read())
 
+        # Lưu lịch sử
+        history = History(
+            filename=original_filename,
+            result_filename=output_name,
+            status='Success',
+            tool_type='page_number',
+            message=f'Đánh số từ {start_number}' + (f' đến {end_number}' if end_number else '')
+        )
+        db.session.add(history)
+        db.session.commit()
+
         return jsonify({
             'success': True,
             'filename': output_name,
@@ -111,6 +137,7 @@ def watermark():
         if not pdf:
             return jsonify({'error': 'Thiếu file PDF'}), 400
 
+        original_filename = pdf.filename
         text = request.form.get('wmText', 'WATERMARK')
         font_size = int(request.form.get('fontSize', 40))
         opacity = float(request.form.get('opacity', 30)) / 100
@@ -123,6 +150,17 @@ def watermark():
         
         with open(output_path, 'wb') as f:
             f.write(output.read())
+
+        # Lưu lịch sử
+        history = History(
+            filename=original_filename,
+            result_filename=output_name,
+            status='Success',
+            tool_type='watermark',
+            message=f'Watermark: "{text[:20]}..."' if len(text) > 20 else f'Watermark: "{text}"'
+        )
+        db.session.add(history)
+        db.session.commit()
 
         return jsonify({
             'success': True,

@@ -43,7 +43,8 @@
 
                     <div class="mode-option selected" data-mode="local" id="modeLocalOption">
                         <div class="form-check mb-0">
-                            <input class="form-check-input" type="radio" name="mode" id="modeLocal" value="local" checked />
+                            <input class="form-check-input" type="radio" name="mode" id="modeLocal" value="local"
+                                checked />
                             <label class="form-check-label" for="modeLocal">
                                 <strong>Cơ bản</strong><br />
                                 <small class="text-muted">Nhanh, Offline</small>
@@ -84,20 +85,25 @@
 
                         <div class="upload-zone mb-4" id="uploadZone">
                             <div class="mb-3">
-                                <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" fill="#6c757d" viewBox="0 0 16 16">
-                                    <path d="M.5 9.9a.5.5 0 0 1 .5.5v2.5a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-2.5a.5.5 0 0 1 1 0v2.5a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2v-2.5a.5.5 0 0 1 .5-.5z" />
-                                    <path d="M7.646 1.146a.5.5 0 0 1 .708 0l3 3a.5.5 0 0 1-.708.708L8.5 2.707V11.5a.5.5 0 0 1-1 0V2.707L5.354 4.854a.5.5 0 1 1-.708-.708l3-3z" />
+                                <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" fill="#6c757d"
+                                    viewBox="0 0 16 16">
+                                    <path
+                                        d="M.5 9.9a.5.5 0 0 1 .5.5v2.5a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-2.5a.5.5 0 0 1 1 0v2.5a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2v-2.5a.5.5 0 0 1 .5-.5z" />
+                                    <path
+                                        d="M7.646 1.146a.5.5 0 0 1 .708 0l3 3a.5.5 0 0 1-.708.708L8.5 2.707V11.5a.5.5 0 0 1-1 0V2.707L5.354 4.854a.5.5 0 1 1-.708-.708l3-3z" />
                                 </svg>
                             </div>
                             <h5 class="text-muted">Kéo thả file PDF vào đây</h5>
                             <p class="text-muted mb-3">hoặc</p>
                             <label for="pdfFile" class="btn btn-primary">Chọn file PDF</label>
-                            <input type="file" id="pdfFile" name="pdf_file" accept=".pdf" required style="display: none" />
+                            <input type="file" id="pdfFile" name="pdf_file" accept=".pdf" required
+                                style="display: none" />
                             <p class="text-muted mt-3 mb-0" id="fileName">Chưa chọn file nào</p>
                         </div>
 
                         <button type="submit" class="btn btn-primary w-100 btn-lg" id="submitBtn">
-                            <span class="spinner-border spinner-border-sm loading-overlay" id="spinner" role="status" aria-hidden="true"></span>
+                            <span class="spinner-border spinner-border-sm loading-overlay" id="spinner" role="status"
+                                aria-hidden="true"></span>
                             <span id="btnText">Chuyển đổi sang Word</span>
                         </button>
                     </form>
@@ -109,9 +115,10 @@
         <div class="col-lg-4 col-md-4">
             <div class="card">
                 <div class="card-header d-flex justify-content-between align-items-center">
-                    <span>Lịch sử chuyển đổi</span>
+                    <span>Lịch sử thao tác</span>
                     {% if history %}
-                    <button type="button" class="btn btn-sm btn-outline-light" data-bs-toggle="modal" data-bs-target="#deleteModal">
+                    <button type="button" class="btn btn-sm btn-outline-light" data-bs-toggle="modal"
+                        data-bs-target="#deleteModal">
                         Xóa tất cả
                     </button>
                     {% endif %}
@@ -123,7 +130,7 @@
                                 <tr>
                                     <th>Thời gian</th>
                                     <th>File</th>
-                                    <th>Định dạng</th>
+                                    <th>Công cụ</th>
                                     <th>Thao tác</th>
                                 </tr>
                             </thead>
@@ -135,6 +142,7 @@
                                         {{ item.filename[:15] }}{% if item.filename|length > 15 %}...{% endif %}
                                     </td>
                                     <td>
+                                        {% if item.tool_type == 'convert' %}
                                         {% if item.output_format == 'excel' %}
                                         <span class="badge bg-success">Excel</span>
                                         {% elif item.output_format == 'powerpoint' %}
@@ -142,16 +150,39 @@
                                         {% else %}
                                         <span class="badge bg-primary">Word</span>
                                         {% endif %}
+                                        {% elif item.tool_type == 'split' %}
+                                        <span class="badge bg-info">Tách</span>
+                                        {% elif item.tool_type == 'merge' %}
+                                        <span class="badge bg-warning text-dark">Ghép</span>
+                                        {% elif item.tool_type == 'rotate' %}
+                                        <span class="badge bg-secondary">Xoay</span>
+                                        {% elif item.tool_type == 'page_number' %}
+                                        <span class="badge bg-dark">Số trang</span>
+                                        {% elif item.tool_type == 'watermark' %}
+                                        <span class="badge bg-purple"
+                                            style="background-color: #6f42c1;">Watermark</span>
+                                        {% else %}
+                                        <span class="badge bg-secondary">{{ item.tool_type }}</span>
+                                        {% endif %}
                                     </td>
                                     <td>
                                         {% if item.status == 'Success' and item.file_exists %}
+                                        {% if item.tool_type == 'convert' or item.tool_type is none or item.tool_type ==
+                                        '' %}
                                         <a href="{{ url_for('main.preview_history', output_filename=item.docx_filename) }}"
-                                           class="btn btn-sm btn-outline-success py-0 px-1" title="Xem">👁</a>
+                                            class="btn btn-sm btn-outline-success py-0 px-1" title="Xem">👁</a>
                                         <a href="{{ url_for('main.download_file', filename=item.docx_filename) }}"
-                                           class="btn btn-sm btn-outline-primary py-0 px-1" title="Tai">⬇</a>
+                                            class="btn btn-sm btn-outline-primary py-0 px-1" title="Tai">⬇</a>
+                                        {% elif item.result_filename %}
+                                        <a href="{{ url_for('merge.preview_result', filename=item.result_filename) }}"
+                                            class="btn btn-sm btn-outline-success py-0 px-1" title="Xem"
+                                            target="_blank">👁</a>
+                                        <a href="{{ url_for('merge.download_result', filename=item.result_filename) }}"
+                                            class="btn btn-sm btn-outline-primary py-0 px-1" title="Tai">⬇</a>
+                                        {% endif %}
                                         <a href="{{ url_for('main.delete_history', id=item.id) }}"
-                                           class="btn btn-sm btn-outline-danger py-0 px-1" title="Xoa"
-                                           onclick="return confirm('Ban co chac muon xoa?');">✕</a>
+                                            class="btn btn-sm btn-outline-danger py-0 px-1" title="Xoa"
+                                            onclick="return confirm('Ban co chac muon xoa?');">✕</a>
                                         {% elif item.status == 'Success' and not item.file_exists %}
                                         <span class="text-muted small">Đã xóa</span>
                                         {% else %}
