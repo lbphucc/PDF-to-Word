@@ -78,15 +78,3 @@ Thay vì convert dòng-sang-dòng, hệ thống phân tích cấu trúc trang (D
 3.  **OCR Fallback:** Nếu mật độ văn bản thấp (file ảnh), tự động kích hoạt engine OCR để nhận diện chữ.
 
 ---
-
-## 6. Kế hoạch dự kiến
-
-Dự án được thực hiện trong 8 tuần theo mô hình **Agile/Scrum** (2 tuần/sprint):
-
-* **Tuần 1-2 (Analysis & Design):** Phân tích yêu cầu, viết SRS, thiết kế DB & API.
-* **Tuần 3-4 (Dev Phase 1):** Xây dựng Core Module PDF Parser & Converter.
-* **Tuần 5-6 (Dev Phase 2):** Frontend, OCR Integration.
-* **Tuần 7 (Testing):** Unit Test, Fix bugs.
-* **Tuần 8 (Release):** Documentation, Deploy Demo.
-
----
